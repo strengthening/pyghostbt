@@ -1,0 +1,24 @@
+[{
+  "mode": "strategy/backtest",
+  "symbol": "btc_usd",
+  "exchange": "okex",
+  "contract_type": "",
+  "strategy": "",
+  "unit_amount": "",
+  "lever": 0,
+  "interval": "",
+
+  "open_type": 1,
+  "open_place_type": "taker/maker",
+  "open_times": 1,
+  "open_swap": 1,
+
+  "liquidate_type": 3,
+  "liquidate_place_type": "taker/maker",
+  "liquidate_times": 1,
+  "liquidate_swap": 0,
+
+  "param_position": 1,
+  "param_abs_loss_ration": -0.05
+
+}]

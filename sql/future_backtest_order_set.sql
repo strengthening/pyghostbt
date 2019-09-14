@@ -1,8 +1,9 @@
 CREATE TABLE `future_order_set` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `sid` varchar(16) NOT NULL COMMENT 'order sid id',
-  `cid` varchar(16) NOT NULL,
-  `type` tinyint(4) NOT NULL COMMENT '1:open_long, 2:open_short, 3: liquidate_long, 4: liquidate_short',
+  `sid` varchar(20) NOT NULL COMMENT 'order set id',
+  `sequence` tinyint(2) NOT NULL COMMENT 'order sid sequence',
+  `type` tinyint(1) NOT NULL COMMENT '1:open_long, 2:open_short, 3: liquidate_long, 4: liquidate_short',
+  `remote_order_id` varchar(50) DEFAULT '' COMMENT 'order sid sequence',
   `price` bigint(20) NOT NULL COMMENT 'unit: 0.00000001',
   `amount` int(11) NOT NULL,
   `avg_price` bigint(11) COMMENT 'unit: 0.00000001',
@@ -15,5 +16,6 @@ CREATE TABLE `future_order_set` (
   `exchange` varchar(20),
   `contract_type` varchar(20),
   `contract_name` varchar(20),
-  `action` int(4) COMMENT '0~9:open, 20:liquidate_switch, 40:open_switch , 100:liquidate'
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `sid` (`sid`,`sequence`),
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

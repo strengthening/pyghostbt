@@ -8,83 +8,93 @@ import numpy as np
 from pyanalysis.database.mysql import *
 
 
-class Instance(object):
-    def __init__(self, instance):
-        self._instance = instance
-        self._instance_json_format = json.dumps(instance)  # 为了生成多个 instance做准备
-        self._symbol = instance["order"]["symbol"]
-        self._exchange = instance["order"]["exchange"]
-        self._strategy = instance["order"]["strategy"]
-        self._intervals = {
-            "weekly": 7 * 24 * 60 * 60 * 1000,
-            "daily": 24 * 60 * 60 * 1000,
-            "hourly": 60 * 60 * 1000,
-            "minutely": 60 * 1000
+class Config(object):
+    def __init__(self, config):
+        self._config = config
+        Config.__check(config)
+
+    @staticmethod
+    def __check(self, config):
+
+        must_exist_keys = [
+
+            "mode",
+            "symbol",
+            "exchange",
+            "contract_type",
+            "strategy",
+            "unit_amount",
+            "lever",
+            "interval",
+
+            "open_type",
+            "open_place_type",
+            "open_times",
+            "open_swap",
+
+            "liquidate_type",
+            "liquidate_place_type",
+            "liquidate_times",
+            "liquidate_swap",
+
+            "param_position",
+            "param_abs_loss_ratio",
+        ]
+
+        for key in must_exist_keys:
+            if key not in config:
+                raise RuntimeError("Can not find the %s in the config" % key)
+
+        if config["mode"] != "strategy" and config["mode"] != "backtest":
+            raise ConfigValueError("mode", config["mode"])
+
+    def get_param(self):
+        param = {
+            "position": self._config["param_position"],
+            "abs_loss_ratio": self._config["param_abs_loss_ratio"],
         }
-
-        if "mode" in instance:
-            self._mode = instance["mode"]  # the mode is analysis or strategy
-        else:
-            self._mode = instance["mode"] or os.environ.get("MODE")
-
-        if instance["order"]["status"] == "wait":
-            self._contract_type = instance["order"]["open_contract_type"]
-        else:
-            # todo this maybe have bug！
-            if "liquidate_contract_type" in instance["order"]:
-                self._contract_type = instance["order"]["liquidate_contract_type"]
-            else:
-                self._contract_type = instance["order"]["open_contract_type"]
-
-    def _check_instance(self):
-        if self._instance:
-            return True
-        return False
-
-    def _get_db_name(self):
-        if self._mode == "analysis":
-            return "ghost-spider"
-        return "ghost"
-
-    def _get_table_name(self, interval=''):
-        if interval == "weekly":
-            # if self._mode == "analysis":
-            #     return "ticker_week_future_{}".format(self._symbol)
-            return "kline_week_future_{}".format(self._symbol)
-        else:
-            if self._mode == "analysis":
-                return "ticker_minute_future_{}".format(self._symbol)
-            return "kline_min_future_{}".format(self._symbol)
+        return param
 
 
-class Technology(Instance):
-    def __init__(self, instance):
-        super().__init__(instance)
 
-    def EMA(self, close, timeperiod=30):
+class ConfigValueError(Exception):
+    def __init__(self, key, value):
+        self._key = key
+        self._value = value
+
+    def __str__(self):
+        return "The config %s can not be %s" % (self._key, self._value)
+
+
+class Technology(object):
+    @staticmethod
+    def ema(close, timeperiod=30):
         if isinstance(close, list):
             close = np.array(close)
         return talib.EMA(close, timeperiod)
 
-    def MACD(self, close, fastperiod=12, slowperiod=26, signalperiod=9):
+    @staticmethod
+    def macd(close, fastperiod=12, slowperiod=26, signalperiod=9):
         if isinstance(close, list):
             close = np.array(close)
         return talib.MACD(close, fastperiod, slowperiod, signalperiod)
 
-    def FORCE(self, kline):
+    @staticmethod
+    def force(klines):
         result = np.array([])
-        for i in range(len(kline)):
+        for i in range(len(klines)):
             if i == 0:
                 result = np.append(result, np.nan)
             else:
-                result = np.append(result, (kline[i]["close"] - kline[i - 1]["close"]) * kline[i]["vol"])
+                result = np.append(result, (klines[i]["close"] - klines[i - 1]["close"]) * klines[i]["vol"])
         return result
 
-    def ATR(self, kline, timeperiod=14):
+    @staticmethod
+    def atr(klines, timeperiod=14):
         return talib.ATR(
-            np.array([k["high"] for k in kline]),
-            np.array([k["low"] for k in kline]),
-            np.array([k["close"] for k in kline]), timeperiod)
+            np.array([k["high"] for k in klines]),
+            np.array([k["low"] for k in klines]),
+            np.array([k["close"] for k in klines]), timeperiod)
 
 
 class Param(Instance):
@@ -134,9 +144,9 @@ class Param(Instance):
 
 
 #  获取k线数据的
-class Kline(Instance):
-    def __init__(self, instance):
-        super().__init__(instance)
+class Kline(object):
+    def __init__(self):
+        super().__init__()
 
     def _get_by_interval(self, timestamp, data_period, interval, current=False):
         ts = Timestamp(timestamp)
@@ -259,126 +269,65 @@ class Kline(Instance):
         return self._get_kline(start_timestamp, timestamp)
 
 
-class Timestamp(object):
-    def __init__(self, ts=None):
-        if ts:
-            self._ts = ts
-        else:
-            self._ts = int(time.time()) * 1000
-
-        self._intervals = {
-            "weekly": 7 * 24 * 60 * 60 * 1000,
-            "daily": 24 * 60 * 60 * 1000,
-            "hourly": 60 * 60 * 1000,
-            "minutely": 60 * 1000
-        }
-
-    def get_contract(self, due_timestamp, exchange="okex"):
-        if exchange != "okex":
-            raise ValueError("exchange is not okex")
-        minus_timestamp = due_timestamp - self._ts
-        if minus_timestamp <= 7 * 24 * 60 * 60 * 1000:
-            return "this_week"
-        elif (7 * 24 * 60 * 60 * 1000) < minus_timestamp <= (14 * 24 * 60 * 60 * 1000):
-            return "next_week"
-        else:
-            return "quarter"
-
-    def get_the_month(self):
-        the_datetime = datetime.datetime.fromtimestamp(self._ts / 1000)
-        the_month = datetime.datetime(the_datetime.year, the_datetime.month, 1, 0, 0, 0, 0)
-        # next_month = datetime.datetime(the_datetime.year, the_datetime.month + 1, 1, 0, 0, 0, 0)
-        return int(the_month.timestamp() * 1000)  # , int(next_month.timestamp() * 1000)
-
-    def get_the_week(self):
-        start_timestamp = 1262534400000  # 2010/1/4 00:00:00@ beijing 周一开始
-        weeks = int((self._ts - start_timestamp) / 1000 / 60 / 60 / 24 / 7)
-        return start_timestamp + weeks * 1000 * 60 * 60 * 24 * 7
-
-    def get_the_day(self):
-        start_timestamp = 1262275200000  # 2010/1/1 00:00:00@ beijing
-        days = int((self._ts - start_timestamp) / 1000 / 60 / 60 / 24)
-        return start_timestamp + days * 1000 * 60 * 60 * 24
-
-    def get_the_hour(self):
-        return int(self._ts / 1000 / 60 / 60) * 1000 * 60 * 60
-
-    def get_the_minute(self):
-        return int(self._ts / 1000 / 60) * 1000 * 60
-
-    def get_by_interval(self, interval):
-        interval_funcs = {
-            "weekly": self.get_the_week,
-            "daily": self.get_the_day,
-            "hourly": self.get_the_hour,
-            "minutely": self.get_the_minute
-        }
-        if interval in interval_funcs:
-            return interval_funcs[interval]()
-        return self._ts
-
-    def get_ms_by_interval(self, interval):
-        if interval in self._intervals:
-            return self._intervals[interval]
-        return 0
-
-
-if __name__ == "__main__":
-    now_timestamp = Timestamp()
-    instance_example = """
-    {
-      "mode": "analysis",
-      "order": {
-        "symbol": "btc_usd",
-        "exchange": "okex",
-        "open_contract_type": "next_week",
-        "type": "open_long",
-        "status": "wait",
-        "direction": "right",
-        "position": 0.5,
-        "strategy": "3rd",
-        "risk": "",
-        "unit_amount": 100,
-        "lever_rate": 20
-      },
-      "param": {
-        "turtle_days": 20,
-        "leak_days": 1,
-        "leak_days_scale": 0.99,
-        "ma_min_days": 7,
-        "ma_max_days": 30,
-        "atr_scale": 0.65,
-        "heavy_profit_scale": 2.2,
-        "light_profit_scale": 1.3,
-        "max_profit_scale": 1.35,
-        "mid_profit_scale": 0.42,
-        "max_loss_scale": 0.032
-      },
-      "tech": {
-
-      }
-    }
-    """
-    example = json.loads(instance_example)
-
-    p = Param(example)
-    print(p.list())
-    # k = Kline(example)
-    # klines = k.get_daily(1516204891000, 20, True)
-    #
-    # t = Technology(example)
-    # fi = t.FORCE(klines)
-    # print(fi)
-    # print(t.EMA(fi, 2))
-    # print(example)
-    #
-    # ana = Analysis(example)
-    # # maxxx = ana.get_n_min(1516204801000, "daily", 20)
-    # #
-    # # ohlc = ana.get_ohlc(1516204801000, 1526204801000)
-    # # print(ohlc)
-    #
-    # ema = ana.get_ema(1517932801000, "daily", 21, 20)
-    # print(ema)
-    # print(ana.get_rsi(1517932801000, "daily"))
-    # print(k.get_daily(1516204891000, 20, True))
+# class Timestamp(object):
+#     def __init__(self, ts=None):
+#         if ts:
+#             self._ts = ts
+#         else:
+#             self._ts = int(time.time()) * 1000
+#
+#         self._intervals = {
+#             "weekly": 7 * 24 * 60 * 60 * 1000,
+#             "daily": 24 * 60 * 60 * 1000,
+#             "hourly": 60 * 60 * 1000,
+#             "minutely": 60 * 1000
+#         }
+#
+#     def get_contract(self, due_timestamp, exchange="okex"):
+#         if exchange != "okex":
+#             raise ValueError("exchange is not okex")
+#         minus_timestamp = due_timestamp - self._ts
+#         if minus_timestamp <= 7 * 24 * 60 * 60 * 1000:
+#             return "this_week"
+#         elif (7 * 24 * 60 * 60 * 1000) < minus_timestamp <= (14 * 24 * 60 * 60 * 1000):
+#             return "next_week"
+#         else:
+#             return "quarter"
+#
+#     def get_the_month(self):
+#         the_datetime = datetime.datetime.fromtimestamp(self._ts / 1000)
+#         the_month = datetime.datetime(the_datetime.year, the_datetime.month, 1, 0, 0, 0, 0)
+#         # next_month = datetime.datetime(the_datetime.year, the_datetime.month + 1, 1, 0, 0, 0, 0)
+#         return int(the_month.timestamp() * 1000)  # , int(next_month.timestamp() * 1000)
+#
+#     def get_the_week(self):
+#         start_timestamp = 1262534400000  # 2010/1/4 00:00:00@ beijing 周一开始
+#         weeks = int((self._ts - start_timestamp) / 1000 / 60 / 60 / 24 / 7)
+#         return start_timestamp + weeks * 1000 * 60 * 60 * 24 * 7
+#
+#     def get_the_day(self):
+#         start_timestamp = 1262275200000  # 2010/1/1 00:00:00@ beijing
+#         days = int((self._ts - start_timestamp) / 1000 / 60 / 60 / 24)
+#         return start_timestamp + days * 1000 * 60 * 60 * 24
+#
+#     def get_the_hour(self):
+#         return int(self._ts / 1000 / 60 / 60) * 1000 * 60 * 60
+#
+#     def get_the_minute(self):
+#         return int(self._ts / 1000 / 60) * 1000 * 60
+#
+#     def get_by_interval(self, interval):
+#         interval_funcs = {
+#             "weekly": self.get_the_week,
+#             "daily": self.get_the_day,
+#             "hourly": self.get_the_hour,
+#             "minutely": self.get_the_minute
+#         }
+#         if interval in interval_funcs:
+#             return interval_funcs[interval]()
+#         return self._ts
+#
+#     def get_ms_by_interval(self, interval):
+#         if interval in self._intervals:
+#             return self._intervals[interval]
+#         return 0

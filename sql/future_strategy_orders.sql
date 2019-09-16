@@ -1,4 +1,4 @@
-CREATE TABLE `future_strategy_order_set` (
+CREATE TABLE `future_strategy_orders` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `instance_id` int(11) NOT NULL COMMENT 'instance id',
   `sequence` tinyint(2) NOT NULL COMMENT 'order sid sequence',
@@ -13,7 +13,7 @@ CREATE TABLE `future_strategy_order_set` (
   `place_type` tinyint(4),
   `lever` int(11) NOT NULL,
   `fee` decimal(20,8),
-  `symbol` varchar(20) NOT NULL,
+  `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
   `contract_type` varchar(20) NOT NULL,
   `contract_name` varchar(20) NOT NULL,

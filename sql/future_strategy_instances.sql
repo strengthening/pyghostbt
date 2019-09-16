@@ -14,8 +14,8 @@ CREATE TABLE `future_strategy_instances` (
   `finish_datetime` datetime NOT NULL,
 
 -- some columns about the asset
-  `anchor_asset` decimal(20,8) COMMENT 'anchored asset, the future account asset must gte anchored_asset',
-  `margin_asset` decimal(20,8) COMMENT 'margined asset, (anchored_asset - open_fee - liquidate_fee)/lever',
+  `anchor_asset` decimal(20,8) COMMENT 'anchor asset, the future account asset when all opening instance set to max loss',
+  `margin_asset` decimal(20,8) COMMENT 'margin asset, (anchored_asset - open_fee - liquidate_fee)/lever*param_position',
 
   `open_type` tinyint(1) NOT NULL COMMENT '1: open_long, 2: open_short',
   `open_place_type` varchar(10) NOT NULL COMMENT 'taker maker',

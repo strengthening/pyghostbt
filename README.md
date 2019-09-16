@@ -16,6 +16,11 @@ Pyghostbt is a open source framework for program trader to backtest the medium/l
 - Support margin backtest.
 - Support swap backtest.
 
+## Notice
+
+- Just write data into backtest tables.
+- Just read data in strategy tables.
+
 ## Unittest
 python3 -m unittest test/future/log.py
 

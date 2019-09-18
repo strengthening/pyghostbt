@@ -6,7 +6,7 @@ CREATE TABLE `future_backtest_instances` (
   `strategy` varchar(20) NOT NULL,
   `unit_amount` int(11) NOT NULL,
   `lever` int(11) NOT NULL,
-  `status` tinyint(1) NOT NULL COMMENT '0: wait_open, 1:opening, 2:wait_liquidate, 3:liquidating, 4:finished, 9:error',
+  `status` tinyint(1) NOT NULL COMMENT '0: wait_open, 1: opening, 2: wait_liquidate, 3: liquidating, 4: finished, 9: error',
   `interval` varchar(20) NOT NULL COMMENT 'the strategy logic generate interval: 1h/4h/1day/1week',
   `start_timestamp` bigint(13) NOT NULL,
   `start_datetime` datetime NOT NULL,

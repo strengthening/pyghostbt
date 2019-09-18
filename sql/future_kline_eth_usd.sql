@@ -12,7 +12,7 @@ CREATE TABLE `future_kline_eth_usd` (
   `timestamp` bigint(13) NOT NULL DEFAULT '0' COMMENT 'The kline start timestamp',
   `date` datetime NOT NULL COMMENT 'The kline start date',
   `due_timestamp` bigint(13) DEFAULT '0' COMMENT 'The contract due timestamp',
-  `due_date` datetime COMMENT 'The contract due date',
+  `due_date` datetime NOT NULL COMMENT 'The contract due date',
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

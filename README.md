@@ -9,7 +9,7 @@ It is not event driven backtesting framework. It just generate trade log in a in
 The anti-event backtesting framework has pros and cons.
 
 - Pros
-    - transaction logic and transaction execution are detachable.  交易逻辑和交易执行可拆分。
+    - transaction logic and transaction execution are detachable.
 - Cons
     - only suitable for medium/low frequency trading strategy.
 

@@ -2,7 +2,16 @@
 
 README: [English](https://github.com/strengthening/pyghostbt/blob/master/README.md) | [中文](https://github.com/strengthening/pyghostbt/blob/master/README-zh.md)
 
-Pyghostbt is a open source framework for program trader to backtest the medium/low frequency trading strategy, even generate the trade logic in production env.
+Pyghostbt is a open source framework for program trader to backtest the medium/low frequency trading strategy, even directly generate the trade logic in production env.    
+It is not event driven backtesting framework. It just generate trade log in a interval times. It fit for the medium/low frequency trading strategy. 
+
+## Pros and cons
+The anti-event backtesting framework has pros and cons.
+
+- Pros
+    - transaction logic and transaction execution are detachable.  交易逻辑和交易执行可拆分。
+- Cons
+    - only suitable for medium/low frequency trading strategy.
 
 ## Feature
 

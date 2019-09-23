@@ -4,6 +4,14 @@ README: [English](https://github.com/strengthening/pyghostbt/blob/master/README.
 
 Pyghostbt是一款开源回测框架，专注于程序化交易的中低频交易策略回测。甚至于在生产环境中直接产生交易逻辑。
 
+## 优劣势
+非事件驱动回测，有优势同样也有劣势。
+
+- 优势
+    - 交易逻辑和交易执行可拆分。
+- 劣势
+    - 仅仅适用于中低频交易策略。
+    
 ## 特性
 
 - 一些常用的技术指标。

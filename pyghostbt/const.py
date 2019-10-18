@@ -21,3 +21,10 @@ EXCHANGE_BINANCE = "binance"
 CONTRACT_TYPE_THIS_WEEK = "this_week"
 CONTRACT_TYPE_NEXT_WEEK = "next_week"
 CONTRACT_TYPE_QUARTER = "quarter"
+
+
+PARAM_TYPE_STRING = "string"
+PARAM_TYPE_INTEGER = "integer"
+PARAM_TYPE_NUMBER = "number"
+PARAM_TYPE = "string"
+

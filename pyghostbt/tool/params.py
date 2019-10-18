@@ -1,8 +1,47 @@
 from pyanalysis.mysql import *
+from pyghostbt.const import *
+
+# 海龟天数
+PARAM_NAME_TURTLE_DAYS = "turtle_days"
+# 仓位
+PARAM_NAME_POSITION = "position"
+# 相对于1 position 账户的损失，负数
+PARAM_NAME_MAX_REL_LOSS = "max_rel_loss"
+# 多：最大止损价/下单价-1 空：1-最大止损价/下单价，负数
+PARAM_NAME_MAX_ABS_LOSS = "max_abs_loss"
+# 多：最大止盈利价/下单价-1 空：1-最大止盈价/下单价，正数
+PARAM_NAME_MAX_ABS_PROFIT = "max_abs_profit"
+
+param_input = {
+    "type": "object",
+    "required": ["instance_id", "trade_type"],
+    "properties": {
+        "instance_id": {"type": "integer"},
+        "trade_type": {
+            "type": "string",
+            "enum": [TRADE_TYPE_FUTURE, TRADE_TYPE_SWAP, TRADE_TYPE_MARGIN, TRADE_TYPE_SPOT]
+        },
+        PARAM_NAME_TURTLE_DAYS: {"type": "integer", "minimum": 0, "maximum": 30},
+        PARAM_NAME_POSITION: {"type": "number", "minimum": 0.1, "maximum": 5},
+        PARAM_NAME_MAX_REL_LOSS: {"type": "number", "maximum": -0.00000001},
+        PARAM_NAME_MAX_ABS_LOSS: {"type": "number", "maximum": -0.00000001},
+        PARAM_NAME_MAX_ABS_PROFIT: {"type": "number", "minimum": 0.00000001}
+    }
+}
+
+param_item = {
+    "type": "object",
+    "required": ["instance_id", "param_name", "param_type", "param_value"],
+    "properties": {
+        "instance_id": {"type": "integer"},
+        "param_name": {"type": "string"},
+        "param_type": {"type": "string"},
+        "param_value": {"type": "string"},
+    }
+}
 
 
 # param 从配置文件中读取到然后， 验证类型，是否定义过
-
 class Param(object):
     def __init__(self, **kwargs):
         super().__init__()

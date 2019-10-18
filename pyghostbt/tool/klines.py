@@ -1,5 +1,6 @@
 from pyanalysis.mysql import Conn
-from pyghostbt.tool.schema import *
+from pyghostbt.tool.schema import kline_input
+from pyghostbt.const import TRADE_TYPE_FUTURE
 from jsonschema import validate
 
 
@@ -19,6 +20,14 @@ class Kline(object):
         self.db_name = kwargs.get("db_name", "default")
         self.table_name = self.__TABLE_NAME_FORMAT__.format(trade_type=self.trade_type, symbol=self.symbol)
 
+        self.sql = """SELECT * FROM {} WHERE symbol = ? AND exchange = ?{}
+         AND `interval` = ? AND timestamp >= ? AND timestamp < ? 
+         ORDER BY timestamp
+        """.format(
+            self.table_name,
+            "" if self.trade_type != TRADE_TYPE_FUTURE else " AND contract_type = ? ",
+        )
+
     @staticmethod
     def __standard_number(the_number):
         """将行情数据放大100000000倍，并四舍五入转化成int"""
@@ -33,18 +42,11 @@ class Kline(object):
 
     def raw_query(self, start_timestamp, finish_timestamp, interval, standard=False):
         conn = Conn(self.db_name)
-        sql = """SELECT * FROM {} WHERE symbol = ? AND exchange = ?{}
-         AND `interval` = ? AND timestamp >= ? AND timestamp < ? 
-         ORDER BY timestamp
-        """.format(
-            self.table_name,
-            "" if self.trade_type != TRADE_TYPE_FUTURE else " AND contract_type = ? ",
-        )
         params = (self.symbol, self.exchange, interval, start_timestamp, finish_timestamp)
         if self.trade_type == TRADE_TYPE_FUTURE:
             params = (self.symbol, self.exchange, self.contract_type, interval, start_timestamp, finish_timestamp)
 
-        candles = conn.query(sql, params)
+        candles = conn.query(self.sql, params)
         if standard:
             std_candles = []
             while candles:
@@ -56,18 +58,11 @@ class Kline(object):
 
     def range_query(self, start_timestamp, finish_timestamp, interval, standard=False):
         conn = Conn(self.db_name)
-        sql = """SELECT * FROM {} WHERE symbol = ? AND exchange = ?{}
-         AND `interval` = ? AND timestamp >= ? AND timestamp < ? 
-         ORDER BY timestamp
-        """.format(
-            self.table_name,
-            "" if self.trade_type != TRADE_TYPE_FUTURE else " AND contract_type = ? ",
-        )
         params = (self.symbol, self.exchange, interval, start_timestamp, finish_timestamp)
         if self.trade_type == TRADE_TYPE_FUTURE:
             params = (self.symbol, self.exchange, self.contract_type, interval, start_timestamp, finish_timestamp)
 
-        candles = conn.query(sql, params)
+        candles = conn.query(self.sql, params)
         conn.close()  # 手动关闭链接。
         for candle in candles:
             yield self.__standard_candle(candle) if standard else candle

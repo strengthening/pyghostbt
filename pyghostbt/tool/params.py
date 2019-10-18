@@ -1,9 +1,14 @@
+from pyanalysis.mysql import *
 
+
+# param 从配置文件中读取到然后， 验证类型，是否定义过
 
 class Param(object):
-    def __init__(self):
-        super().__init__(instance)
-        self._param = self._instance["param"] if "param" in instance else None
+    def __init__(self, **kwargs):
+        super().__init__()
+        if "instance_id" not in kwargs:
+            raise RuntimeError("The param must has the instance_id")
+        # self._param = self._instance["param"] if "param" in instance else None
 
     def list(self):
         params = []

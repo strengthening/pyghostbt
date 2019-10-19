@@ -1,4 +1,4 @@
-CREATE TABLE `future_strategy_indices` (
+CREATE TABLE `future_indices_strategy` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,

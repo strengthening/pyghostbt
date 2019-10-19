@@ -1,4 +1,4 @@
-CREATE TABLE `future_backtest_indices` (
+CREATE TABLE `future_indices_backtest` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,

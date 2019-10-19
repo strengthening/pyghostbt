@@ -1,4 +1,4 @@
-CREATE TABLE `future_strategy_asset` (
+CREATE TABLE `future_assets_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,

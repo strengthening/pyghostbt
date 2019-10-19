@@ -12,7 +12,7 @@ config = {
 }
 
 
-class TestMarketKline(unittest.TestCase):
+class TestToolKline(unittest.TestCase):
     def test_raw_query(self):
         k = Kline(**config)
         result = k.raw_query(1571180425000, 1571284025000, KLINE_INTERVAL_1MIN, standard=True)

@@ -1,4 +1,5 @@
-
+MODE_STRATEGY = "strategy"
+MODE_BACKTEST = "backtest"
 
 KLINE_INTERVAL_1MIN = "1min"
 KLINE_INTERVAL_15MIN = "15min"
@@ -25,6 +26,4 @@ CONTRACT_TYPE_QUARTER = "quarter"
 
 PARAM_TYPE_STRING = "string"
 PARAM_TYPE_INTEGER = "integer"
-PARAM_TYPE_NUMBER = "number"
-PARAM_TYPE = "string"
-
+PARAM_TYPE_FLOAT = "float"

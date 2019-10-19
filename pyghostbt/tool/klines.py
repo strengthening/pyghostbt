@@ -1,7 +1,33 @@
-from pyanalysis.mysql import Conn
-from pyghostbt.tool.schema import kline_input
-from pyghostbt.const import TRADE_TYPE_FUTURE
 from jsonschema import validate
+from pyanalysis.mysql import Conn
+from pyghostbt.const import *
+
+kline_input = {
+    "type": "object",
+    "required": ["trade_type", "symbol", "exchange", "db_name"],
+    "properties": {
+        "trade_type": {
+            "type": "string",
+            "enum": [TRADE_TYPE_FUTURE, TRADE_TYPE_SWAP, TRADE_TYPE_MARGIN, TRADE_TYPE_SPOT],
+        },
+        "symbol": {
+            "type": "string",
+            "minLength": 1,
+        },
+        "exchange": {
+            "type": "string",
+            "enum": [EXCHANGE_OKEX, EXCHANGE_HUOBI, EXCHANGE_BINANCE],
+        },
+        "contract_type": {
+            "type": "string",
+            "enum": [CONTRACT_TYPE_THIS_WEEK, CONTRACT_TYPE_NEXT_WEEK, CONTRACT_TYPE_QUARTER],
+        },
+        "db_name": {
+            "type": "string",
+            "minLength": 1,
+        }
+    }
+}
 
 
 class Kline(object):

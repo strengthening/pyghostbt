@@ -1,4 +1,4 @@
-CREATE TABLE `future_backtest_params` (
+CREATE TABLE `future_params_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `instance_id` int(11) NOT NULL COMMENT 'instance id',
   `param_name` varchar(50) NOT NULL,

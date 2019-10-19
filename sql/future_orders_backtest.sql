@@ -1,4 +1,4 @@
-CREATE TABLE `future_backtest_orders` (
+CREATE TABLE `future_orders_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `instance_id` int(11) NOT NULL COMMENT 'instance id',
   `sequence` tinyint(2) NOT NULL COMMENT 'order sid sequence',

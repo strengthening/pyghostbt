@@ -1,4 +1,4 @@
-CREATE TABLE `future_strategy_instances` (
+CREATE TABLE `future_instances_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
@@ -6,7 +6,7 @@ CREATE TABLE `future_strategy_instances` (
   `strategy` varchar(20) NOT NULL,
   `unit_amount` int(11) NOT NULL,
   `lever` int(11) NOT NULL,
-  `status` tinyint(1) NOT NULL COMMENT '0: wait_open, 1:opening, 2:wait_liquidate, 3:liquidating, 4:finished, 9:error',
+  `status` tinyint(1) NOT NULL COMMENT '0: wait_open, 1: opening, 2: wait_liquidate, 3: liquidating, 4: finished, 9: error',
   `interval` varchar(20) NOT NULL COMMENT 'the strategy logic generate interval: 1h/4h/1day/1week',
   `start_timestamp` bigint(13) NOT NULL,
   `start_datetime` datetime NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE `future_strategy_instances` (
   `liquidate_datetime` datetime,
 
   `param_position` decimal(2,6) NOT NULL COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',
-  `param_max_loss_ratio` decimal(2,6) NOT NULL COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',
+  `param_max_abs_loss` decimal(2,6) NOT NULL COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',
 
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

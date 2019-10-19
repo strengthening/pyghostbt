@@ -4,7 +4,7 @@ from pyghostbt.const import *
 
 # 海龟天数
 PARAM_NAME_TURTLE_DAYS = "turtle_days"
-# 仓位
+# 仓位 必须是float且小数点后面1位。
 PARAM_NAME_POSITION = "position"
 # 相对于1 position 账户的损失，负数
 PARAM_NAME_MAX_REL_LOSS = "max_rel_loss"
@@ -32,17 +32,26 @@ param_input = {
             "enum": [MODE_STRATEGY, MODE_BACKTEST],
         },
         PARAM_NAME_TURTLE_DAYS: {"type": "integer", "minimum": 0, "maximum": 30},
-        PARAM_NAME_POSITION: {"type": "number", "minimum": 0.1, "maximum": 5},
+        PARAM_NAME_POSITION: {"type": "number", "multipleOf": 0.1, "minimum": 0.1, "maximum": 5},
         PARAM_NAME_MAX_REL_LOSS: {"type": "number", "maximum": -0.00000001},
         PARAM_NAME_MAX_ABS_LOSS: {"type": "number", "maximum": -0.00000001},
         PARAM_NAME_MAX_ABS_PROFIT: {"type": "number", "minimum": 0.00000001}
     }
 }
 
+param_save_input = {
+    "type": "object",
+    "required": [PARAM_NAME_POSITION, PARAM_NAME_MAX_ABS_LOSS],
+    "properties": {
+        PARAM_NAME_TURTLE_DAYS: {"type": "integer", "minimum": 0, "maximum": 30},
+        PARAM_NAME_POSITION: {"type": "number", "multipleOf": 0.1, "minimum": 0.1, "maximum": 5},
+    }
+}
+
 
 # param 从配置文件中读取到然后， 验证类型，是否定义过
 class Param(object):
-    __TABLE_NAME_FORMAT__ = "{trade_type}_{mode}_params"
+    __TABLE_NAME_FORMAT__ = "{trade_type}_params_{mode}"
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -53,7 +62,7 @@ class Param(object):
         self.trade_type = kwargs.get("trade_type")
         self.instance_id = kwargs.get("instance_id")
 
-        self.table_name = self.__TABLE_NAME_FORMAT__.format(kwargs)
+        self.table_name = self.__TABLE_NAME_FORMAT__.format(**kwargs)
         self._param = kwargs.copy()
 
         del self._param["db_name"]
@@ -82,15 +91,22 @@ class Param(object):
     def save(self):
         if self.mode == MODE_STRATEGY:
             raise RuntimeError("You can not save data in strategy mode")
+        validate(instance=self._param, schema=param_save_input)
 
         params = []
         for param_name in self._param:
             if isinstance(self._param[param_name], int):
-                params.append([self.instance_id, param_name, PARAM_TYPE_INTEGER, str(self._param[param_name])])
+                params.append(
+                    (self.instance_id, param_name, PARAM_TYPE_INTEGER, str(self._param[param_name]))
+                )
             elif isinstance(self._param[param_name], float):
-                params.append([self.instance_id, param_name, PARAM_TYPE_FLOAT, str(self._param[param_name])])
+                params.append(
+                    (self.instance_id, param_name, PARAM_TYPE_FLOAT, str(self._param[param_name]))
+                )
             else:
-                params.append([self.instance_id, param_name, PARAM_TYPE_STRING, self._param[param_name]])
+                params.append(
+                    (self.instance_id, param_name, PARAM_TYPE_STRING, self._param[param_name])
+                )
 
         if params:
             conn = Conn(self.db_name)

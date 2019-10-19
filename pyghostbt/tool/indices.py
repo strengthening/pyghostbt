@@ -30,4 +30,6 @@ class Indices(object):
         return talib.ATR(
             np.array([k["high"] for k in candles]),
             np.array([k["low"] for k in candles]),
-            np.array([k["close"] for k in candles]), time_period)
+            np.array([k["close"] for k in candles]),
+            time_period,
+        )

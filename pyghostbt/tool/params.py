@@ -1,3 +1,4 @@
+from jsonschema import validate
 from pyanalysis.mysql import *
 from pyghostbt.const import *
 
@@ -14,12 +15,21 @@ PARAM_NAME_MAX_ABS_PROFIT = "max_abs_profit"
 
 param_input = {
     "type": "object",
-    "required": ["instance_id", "trade_type"],
+    "required": ["instance_id", "trade_type", "db_name", "mode"],
     "properties": {
-        "instance_id": {"type": "integer"},
+        "instance_id": {
+            "type": "integer"
+        },
         "trade_type": {
             "type": "string",
             "enum": [TRADE_TYPE_FUTURE, TRADE_TYPE_SWAP, TRADE_TYPE_MARGIN, TRADE_TYPE_SPOT]
+        },
+        "db_name": {
+            "type": "string", "minLength": 1
+        },
+        "mode": {
+            "type": "string",
+            "enum": [MODE_STRATEGY, MODE_BACKTEST],
         },
         PARAM_NAME_TURTLE_DAYS: {"type": "integer", "minimum": 0, "maximum": 30},
         PARAM_NAME_POSITION: {"type": "number", "minimum": 0.1, "maximum": 5},
@@ -29,62 +39,68 @@ param_input = {
     }
 }
 
-param_item = {
-    "type": "object",
-    "required": ["instance_id", "param_name", "param_type", "param_value"],
-    "properties": {
-        "instance_id": {"type": "integer"},
-        "param_name": {"type": "string"},
-        "param_type": {"type": "string"},
-        "param_value": {"type": "string"},
-    }
-}
-
 
 # param 从配置文件中读取到然后， 验证类型，是否定义过
 class Param(object):
+    __TABLE_NAME_FORMAT__ = "{trade_type}_{mode}_params"
+
     def __init__(self, **kwargs):
         super().__init__()
-        if "instance_id" not in kwargs:
-            raise RuntimeError("The param must has the instance_id")
-        # self._param = self._instance["param"] if "param" in instance else None
 
-    def list(self):
+        validate(instance=kwargs, schema=param_input)
+        self.db_name = kwargs.get("db_name")
+        self.mode = kwargs.get("mode")
+        self.trade_type = kwargs.get("trade_type")
+        self.instance_id = kwargs.get("instance_id")
+
+        self.table_name = self.__TABLE_NAME_FORMAT__.format(kwargs)
+        self._param = kwargs.copy()
+
+        del self._param["db_name"]
+        del self._param["trade_type"]
+        del self._param["instance_id"]
+        del self._param["mode"]
+
+    def load(self):
+        self._param = {}
+        conn = Conn(self.db_name)
+        results = conn.query(
+            "SELECT * FROM {} WHERE instance_id = ?".format(self.table_name),
+            (self.instance_id,),
+        )
+
+        for result in results:
+            if result["param_type"] == PARAM_TYPE_INTEGER:
+                self._param[result["param_name"]] = int(result["param_value"])
+            elif result["param_type"] == PARAM_TYPE_FLOAT:
+                self._param[result["param_name"]] = float(result["param_value"])
+            else:
+                self._param[result["param_name"]] = result["param_value"]
+
+        return self._param
+
+    def save(self):
+        if self.mode == MODE_STRATEGY:
+            raise RuntimeError("You can not save data in strategy mode")
+
         params = []
-        for key in self._param:
-            if isinstance(self._param[key], int):
-                params.append([key, "int", str(self._param[key])])
-            elif isinstance(self._param[key], str):
-                params.append([key, "string", str(self._param[key])])
-            elif isinstance(self._param[key], float):
-                params.append([key, "float", str(self._param[key])])
+        for param_name in self._param:
+            if isinstance(self._param[param_name], int):
+                params.append([self.instance_id, param_name, PARAM_TYPE_INTEGER, str(self._param[param_name])])
+            elif isinstance(self._param[param_name], float):
+                params.append([self.instance_id, param_name, PARAM_TYPE_FLOAT, str(self._param[param_name])])
             else:
-                pass
-        return params
+                params.append([self.instance_id, param_name, PARAM_TYPE_STRING, self._param[param_name]])
 
-    def get(self, order_id):
-        conn = Conn(self._get_db_name())
-        params = conn.query("""SELECT * FROM order_future_param WHERE order_id = %s""", (order_id,))
-
-        _params = {}
-        for param in params:
-            if param["type"] == "int":
-                _params[param["name"]] = int(param["value"])
-            elif param["type"] == "float":
-                _params[param["name"]] = float(param["value"])
-            else:
-                _params[param["name"]] = param["value"]
-
-        return _params
-
-    def sync(self, order_id):
-        param_future_sql = """INSERT INTO order_future_param (`order_id`, `name`, `type`, `value`) VALUES """
-        params = self.list()
         if params:
-            conn = Conn(self._get_db_name())
+            conn = Conn(self.db_name)
+            param_future_sql = "INSERT INTO {} (instance_id, param_name, param_type, param_value) VALUES ".format(
+                self.table_name,
+            )
+
             param_future_sql += "(%s, %s, %s, %s), " * len(params)
             param_future_sql = param_future_sql[:-2]
             sql_params = ()
             for param in params:
-                sql_params += (order_id, param[0], param[1], param[2])
+                sql_params += param
             conn.execute(param_future_sql, sql_params)

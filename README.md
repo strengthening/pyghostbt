@@ -33,6 +33,6 @@ The anti-event backtesting framework has pros and cons.
 ## Unittest
 python3 -m unittest test/future/log.py
 
-## LICENSE
+## License
 
 The project use the [New BSD License](./LICENSE)

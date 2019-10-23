@@ -1,5 +1,6 @@
 CREATE TABLE `future_params_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `backtest_id` varchar(16) NOT NULL COMMENT 'backtest unique id',
   `instance_id` int(11) NOT NULL COMMENT 'instance id',
   `param_name` varchar(50) NOT NULL,
   `param_type` varchar(20) NOT NULL COMMENT 'int64/float/string',

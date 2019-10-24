@@ -1,6 +1,6 @@
 import unittest
 
-from pyghostbt.tool.params import *
+from pyghostbt.tool.param import *
 from pyghostbt.const import *
 
 config = {

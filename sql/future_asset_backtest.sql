@@ -2,7 +2,7 @@ CREATE TABLE `future_asset_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
-  `backtest_id` varchar(16) NOT NULL COMMENT '单次回测的标识',
+  `backtest_id` varchar(32) NOT NULL COMMENT '单次回测的标识',
   `total_account_asset` decimal(20,8) COMMENT '资金账户+余币宝+期货账户开仓订单盈利情况都算成0的情况（total_avail_balance + realized_pnl）',
   `future_account_asset` decimal(20,8) COMMENT '期货账户开仓订单盈利情况都算成0的情况（total_avail_balance + realized_pnl）',
   `future_freeze_asset` decimal(20,8) COMMENT '期货账户当前冻结的资产,主要用于保证金/支付损失/支付手续费',

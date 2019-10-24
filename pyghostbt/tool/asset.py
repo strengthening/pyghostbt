@@ -1,3 +1,5 @@
+# 资产管理
+
 from jsonschema import validate
 from pyghostbt.const import *
 from pyanalysis.mysql import Conn
@@ -21,7 +23,7 @@ asset_input = {
         },
         "mode": {
             "type": "string",
-            "enum": [MODE_STRATEGY, MODE_BACKTEST],
+            "enum": [MODE_ONLINE, MODE_ONLINE, MODE_BACKTEST],
         },
         "db_name": {
             "type": "string",

@@ -17,3 +17,24 @@
 ### 需要调研的包
 jsonschema
 pyfolio
+
+
+#### logic
+
+config file-> strategy runtime ------------> wait_open  
+              strategy runtime -> database-> opening  
+              strategy runtime -> database-> wait_liquidate  
+              strategy runtime -> database-> liquidate  
+              
+config file-> backtest runtime -> wait_open -> opening -> wait_liquidate -> liquidate
+
+
+#### runtime
+ 
+1. kline. for get the kline data
+1. asset. for get the asset info
+1. indice. for calculate the tech indice.
+1. param. for store the strategy param.
+1. order. for the order info in memory or table.
+
+

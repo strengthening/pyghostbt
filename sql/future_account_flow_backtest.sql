@@ -2,7 +2,7 @@ CREATE TABLE `future_account_flow_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
-  `backtest_id` varchar(16) NOT NULL COMMENT 'backtest unique id',
+  `backtest_id` varchar(32) NOT NULL COMMENT 'backtest unique id',
   `relate_id` int(11) NOT NULL DEFAULT '-1' COMMENT 'relate',
   `subject` varchar(30) NOT NULL COMMENT 'injection/dividend/freeze/unfreeze/income/transaction_fee/adjustment/transfer',
   `amount` bigint(20) NOT NULL COMMENT 'the real amount * 100000000',

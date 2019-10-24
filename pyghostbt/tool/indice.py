@@ -1,8 +1,10 @@
+# 策略技术指标
+
 import talib
 import numpy as np
 
 
-class Indices(object):
+class Indice(object):
     @staticmethod
     def EMA(close, time_period=30):
         if isinstance(close, list):

@@ -1,6 +1,6 @@
 import unittest
 
-from pyghostbt.tool.klines import Kline
+from pyghostbt.tool.kline import Kline
 from pyghostbt.const import *
 
 config = {

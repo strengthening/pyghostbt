@@ -14,8 +14,8 @@ config_example = {
     "lever": 10,
     "interval": "1min",
 
-    "db_name": "market",
-    "db_name_kline": "market",
+    "db_name": "test",
+    "db_name_kline": "test",
 
     "param": {
         "position": 0.5,

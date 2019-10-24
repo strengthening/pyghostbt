@@ -7,11 +7,16 @@ from pyanalysis.moment import moment
 
 asset_input = {
     "type": "object",
-    "required": ["trade_type", "symbol", "exchange", "mode", "db_name"],
+    "required": ["trade_type", "symbol", "exchange", "mode", "db_name", "backtest_id"],
     "properties": {
         "trade_type": {
             "type": "string",
-            "enum": [TRADE_TYPE_FUTURE, TRADE_TYPE_SWAP, TRADE_TYPE_MARGIN, TRADE_TYPE_SPOT],
+            "enum": [
+                TRADE_TYPE_FUTURE,
+                TRADE_TYPE_SWAP,
+                TRADE_TYPE_MARGIN,
+                TRADE_TYPE_SPOT,
+            ],
         },
         "symbol": {
             "type": "string",
@@ -19,22 +24,36 @@ asset_input = {
         },
         "exchange": {
             "type": "string",
-            "enum": [EXCHANGE_OKEX, EXCHANGE_HUOBI, EXCHANGE_BINANCE],
+            "enum": [
+                EXCHANGE_OKEX,
+                EXCHANGE_HUOBI,
+                EXCHANGE_BINANCE,
+            ],
         },
         "mode": {
             "type": "string",
-            "enum": [MODE_ONLINE, MODE_ONLINE, MODE_BACKTEST],
+            "enum": [
+                MODE_ONLINE,
+                MODE_ONLINE,
+                MODE_BACKTEST,
+            ],
         },
         "db_name": {
             "type": "string",
             "minLength": 1,
+        },
+        "backtest_id": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 32,
         }
     }
 }
 
 
 class Asset(object):
-    __TABLE_NAME_FORMAT__ = "{trade_type}_assets_{mode}"
+    __ASSET_TABLE_NAME_FORMAT__ = "{trade_type}_assets_{mode}"
+    __ACCOUNT_FLOW_TABLE_NAME_FORMAT__ = "{trade_type}_account_flow_{mode}"
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -44,50 +63,51 @@ class Asset(object):
         self.exchange = kwargs.get("exchange")
         self.trade_type = kwargs.get("trade_type")
         self.mode = kwargs.get("mode")
+        self.backtest_id = kwargs.get("backtest_id")
 
         self.db_name = kwargs.get("db_name", "default")
-        self.table_name = self.__TABLE_NAME_FORMAT__.format(
+        self.asset_table_name = self.__ASSET_TABLE_NAME_FORMAT__.format(
+            trade_type=self.trade_type,
+            symbol=self.mode,
+        )
+        self.account_flow_table_name = self.__ACCOUNT_FLOW_TABLE_NAME_FORMAT__.format(
             trade_type=self.trade_type,
             symbol=self.mode,
         )
 
-    def __clear_account(self):
-        if self.mode != MODE_BACKTEST:
-            raise RuntimeError("Only the backtest mode can clear account by this function. ")
-
-        conn = Conn(self.db_name)
-        conn.execute(
-            "DELETE FROM {} WHERE symbol = ? AND exchange = ?".format(self.table_name),
-            (self.symbol, self.exchange)
-        )
-
     def __get_last_asset(self, timestamp):
         conn = Conn(self.db_name)
+        if self.mode == MODE_BACKTEST:
+            return conn
+
         return conn.query_one(
             "SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND snapshot_timestamp < ?"
-            " ORDER BY snapshot_timestamp DESC LIMIT 1".format(self.table_name),
+            " ORDER BY snapshot_timestamp DESC LIMIT 1".format(self.asset_table_name),
             (self.symbol, self.exchange, timestamp)
         )
 
-    def init_account(self, amount, total_account_position, future_account_position):
+    def __set_the_asset(self, timestamp):
         if self.mode != MODE_BACKTEST:
             raise RuntimeError("Only the backtest mode can init account by this function. ")
-        # 清空这个表中的所有的数据
-        self.__clear_account()
-        future_ratio = future_account_position / total_account_position
+        conn = Conn(self.db_name)
+        conn.query_one(
+            """SELECT * FROM {} symbol = ? AND exchange = ? AND timestamp >= ?"""
+        )
 
-        snapshot = moment.get(BIRTHDAY_BTC)
+
+    def init_account(self, amount):
+        if self.mode != MODE_BACKTEST:
+            raise RuntimeError("Only the backtest mode can init account by this function. ")
+        m = moment.get(BIRTHDAY_BTC)
         conn = Conn(self.db_name)
         conn.insert(
             """
-            INSERT INTO {} (symbol, exchange, total_account_asset, future_account_asset, future_max_margin, 
-            future_max_loss, total_account_position, future_account_position, future_opened_position,
-            snapshot_timestamp, snapshot_datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.format(self.table_name),
+            INSERT INTO {} (symbol, exchange, backtest_id, relate_id, subject,
+             amount, `position`, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.format(self.account_flow_table_name),
             (
-                self.symbol, self.exchange, amount, amount * future_ratio, 0.0,
-                0.0, 0.0, total_account_position, future_account_position, 0,
-                snapshot.millisecond_timestamp, snapshot.format("YYYY-MM-DD HH:mm:ss"),
+                self.symbol, self.exchange, self.backtest_id, -1, SUBJECT_INJECTION,
+                amount, 0, m.millisecond_timestamp, m.format("YYYY-MM-DD HH:mm:ss"),
             )
         )
 
@@ -124,7 +144,7 @@ class Asset(object):
             INSERT INTO {} (symbol, exchange, total_account_asset, future_account_asset, future_max_margin, 
             future_max_loss, total_account_position, future_account_position, future_opened_position,
             snapshot_timestamp, snapshot_datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.format(self.table_name),
+            """.format(self.asset_table_name),
             (
                 self.symbol, self.exchange, total_account_asset, future_account_asset, future_max_margin,
                 future_max_loss, total_account_position, future_account_position, future_opened_position,
@@ -156,7 +176,7 @@ class Asset(object):
             INSERT INTO {} (symbol, exchange, total_account_asset, future_account_asset, future_max_margin, 
             future_max_loss, total_account_position, future_account_position, future_opened_position,
             snapshot_timestamp, snapshot_datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.format(self.table_name),
+            """.format(self.asset_table_name),
             (
                 self.symbol, self.exchange, total_account_asset, future_account_asset, future_max_margin,
                 future_max_loss, total_account_position, future_account_position, future_opened_position,

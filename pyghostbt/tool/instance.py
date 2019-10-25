@@ -20,10 +20,11 @@ instance_input = {
         },
         "mode": {
             "type": "string",
-            "enum": [MODE_STRATEGY, MODE_BACKTEST],
+            "enum": [MODE_ONLINE, MODE_OFFLINE, MODE_BACKTEST],
         }
     }
 }
+
 
 class Instance(object):
     def __init__(self, **kwargs):

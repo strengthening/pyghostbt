@@ -1,5 +1,3 @@
-# 资产管理
-
 from jsonschema import validate
 from pyghostbt.const import *
 from pyanalysis.mysql import Conn
@@ -7,7 +5,7 @@ from pyanalysis.moment import moment
 
 asset_input = {
     "type": "object",
-    "required": ["trade_type", "symbol", "exchange", "mode", "db_name", "backtest_id"],
+    "required": ["trade_type", "symbol", "exchange", "contract_type", "mode", "db_name"],
     "properties": {
         "trade_type": {
             "type": "string",
@@ -30,6 +28,14 @@ asset_input = {
                 EXCHANGE_BINANCE,
             ],
         },
+        "contract_type": {
+            "type": "string",
+            "enum": [
+                CONTRACT_TYPE_THIS_WEEK,
+                CONTRACT_TYPE_NEXT_WEEK,
+                CONTRACT_TYPE_QUARTER,
+            ],
+        },
         "mode": {
             "type": "string",
             "enum": [
@@ -50,6 +56,38 @@ asset_input = {
     }
 }
 
+account_flow_input = {
+    "type": "object",
+    "required": ["symbol", "exchange", "contract_type", "subject", "amount", "position", "timestamp", "datetime"],
+    "properties": {
+        "subject": {
+            "type": "string",
+            "enum": [
+                SUBJECT_INJECTION,
+                SUBJECT_DIVIDEND,
+                SUBJECT_FREEZE,
+                SUBJECT_UNFREEZE,
+                SUBJECT_INCOME,
+                SUBJECT_TRANSACTION_FEE,
+                SUBJECT_LOAN_FEE,
+                SUBJECT_ADJUSTMENT,
+                SUBJECT_TRANSFER,
+            ],
+        },
+        "amount": {
+            "type": "integer",
+        },
+        "position": {
+            "type": "number",
+        },
+        "timestamp": {
+            "type": "integer",
+            "minimum": 1000000000000,
+            "maximum": 9999999999999,
+        }
+    }
+}
+
 
 class Asset(object):
     __ASSET_TABLE_NAME_FORMAT__ = "{trade_type}_assets_{mode}"
@@ -61,6 +99,7 @@ class Asset(object):
 
         self.symbol = kwargs.get("symbol")
         self.exchange = kwargs.get("exchange")
+        self.contract_type = kwargs.get("contract_type")
         self.trade_type = kwargs.get("trade_type")
         self.mode = kwargs.get("mode")
         self.backtest_id = kwargs.get("backtest_id")
@@ -75,111 +114,122 @@ class Asset(object):
             symbol=self.mode,
         )
 
-    def __get_last_asset(self, timestamp):
-        conn = Conn(self.db_name)
-        if self.mode == MODE_BACKTEST:
-            return conn
+    def __add_account_flow_item(self, **kwargs):
+        """
+        add record in account flow table
+        :param
+            subject: the item of account flow
+            amount: the amount of flow, the real amount * 100000000
+            position: the position of the flow
+            timestamp: the item of account flow
 
-        return conn.query_one(
-            "SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND snapshot_timestamp < ?"
-            " ORDER BY snapshot_timestamp DESC LIMIT 1".format(self.asset_table_name),
-            (self.symbol, self.exchange, timestamp)
-        )
+        :return: the uuid len 32
+        """
 
-    def __set_the_asset(self, timestamp):
         if self.mode != MODE_BACKTEST:
-            raise RuntimeError("Only the backtest mode can init account by this function. ")
-        conn = Conn(self.db_name)
-        conn.query_one(
-            """SELECT * FROM {} symbol = ? AND exchange = ? AND timestamp >= ?"""
-        )
-
-
-    def init_account(self, amount):
-        if self.mode != MODE_BACKTEST:
-            raise RuntimeError("Only the backtest mode can init account by this function. ")
-        m = moment.get(BIRTHDAY_BTC)
+            raise RuntimeError("Only backtest mode can insert data into table. ")
+        validate(instance=kwargs, schema=account_flow_input)
         conn = Conn(self.db_name)
         conn.insert(
             """
-            INSERT INTO {} (symbol, exchange, backtest_id, relate_id, subject,
-             amount, `position`, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO {} (symbol, exchange, contract_type, backtest_id, subject, amount,
+            position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.format(self.account_flow_table_name),
             (
-                self.symbol, self.exchange, self.backtest_id, -1, SUBJECT_INJECTION,
-                amount, 0, m.millisecond_timestamp, m.format("YYYY-MM-DD HH:mm:ss"),
+                self.symbol, self.exchange, self.contract_type, self.backtest_id,
+                kwargs.get("subject"), kwargs.get("amount"), kwargs.get("position"),
+                kwargs.get("timestamp"), kwargs.get("datetime"),
+            ),
+        )
+
+        position = conn.query_one(
+            """SELECT SUM(position) AS position FROM {}
+            WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ?
+            """.format(self.account_flow_table_name),
+            (self.symbol, self.exchange, self.backtest_id, kwargs.get("timestamp"))
+        )["position"]
+
+        amount = conn.query_one(
+            """
+            SELECT SUM(amount)/100000000 AS amount FROM {} 
+            WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ?
+            AND subject NOT IN (?, ?)
+            """.format(self.account_flow_table_name),
+            (
+                self.symbol, self.exchange, self.backtest_id, kwargs.get("timestamp"),
+                SUBJECT_FREEZE, SUBJECT_UNFREEZE,
+            ),
+        )["amount"]
+
+        conn.insert(
+            """
+            INSERT INTO {} (symbol, exchange, backtest_id, total_account_asset, future_account_asset,
+            future_freeze_asset, total_account_position, future_account_position, future_freeze_position,
+            timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.format(self.asset_table_name),
+            (
+                self.symbol, self.exchange, self.backtest_id, amount, 0, 0, 0, 0, position,
+                kwargs.get("timestamp"), kwargs.get("datetime"),
             )
         )
 
-    def get_the_anchor_asset(self, open_position, open_timestamp, future_limit_position):
-        asset_info = self.__get_last_asset(open_timestamp)
-        if asset_info is None:
-            raise RuntimeError("May be you should init_account. ")
-        # 超过限制同时开仓的限制，则返回负数
-        if (asset_info["future_opened_position"] + open_position) >= future_limit_position:
-            return -1
-        # 建仓原则，当有开仓的情况下。认为现在的总账户按照此开仓损失来看待。
-        return asset_info["total_account_asset"] + asset_info["future_max_loss"]
-
-    def lock_the_asset(self, snapshot_timestamp, position, max_margin, loss_asset):
-        if self.mode != MODE_BACKTEST:
-            raise RuntimeError("Only the backtest mode can lock the asset by this function. ")
-
-        snapshot = moment.get(snapshot_timestamp, tzinfo="Asia/Shanghai")
-        asset_info = self.__get_last_asset(snapshot_timestamp)
-
-        total_account_asset = asset_info["total_account_asset"]
-        future_account_asset = asset_info["future_account_asset"]
-
-        future_max_margin = asset_info["future_max_margin"] + max_margin
-        future_max_loss = asset_info["future_max_loss"] + loss_asset
-
-        total_account_position = asset_info["total_account_position"]
-        future_account_position = asset_info["future_account_position"]
-        future_opened_position = asset_info["future_opened_position"] + position
-
-        conn = Conn(self.db_name)
-        conn.insert(
-            """
-            INSERT INTO {} (symbol, exchange, total_account_asset, future_account_asset, future_max_margin, 
-            future_max_loss, total_account_position, future_account_position, future_opened_position,
-            snapshot_timestamp, snapshot_datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.format(self.asset_table_name),
-            (
-                self.symbol, self.exchange, total_account_asset, future_account_asset, future_max_margin,
-                future_max_loss, total_account_position, future_account_position, future_opened_position,
-                snapshot_timestamp, snapshot.format("YYYY-MM-DD HH:mm:ss"),
-            ),
+    # 回测是初始化账户，主要是注资
+    def init_account(self, amount):
+        m = moment.get(BIRTHDAY_BTC)
+        self.__add_account_flow_item(
+            subject=SUBJECT_INJECTION,
+            amount=amount,
+            position=0,
+            timestamp=m.millisecond_timestamp,
+            datetime=m.format("YYYY-MM-DD HH:mm:ss"),
         )
 
-    def unlock_the_asset(self, snapshot_timestamp, position, max_margin, loss_asset, pnl_asset):
-        if self.mode != MODE_BACKTEST:
-            raise RuntimeError("Only the backtest mode can unlock the asset by this function. ")
-
-        snapshot = moment.get(snapshot_timestamp, tzinfo="Asia/Shanghai")
-        asset_info = self.__get_last_asset(snapshot_timestamp)
-
-        total_account_asset = asset_info["total_account_asset"] + pnl_asset
-        future_account_asset = total_account_asset * asset_info["future_account_position"] / asset_info[
-            "total_account_position"]
-
-        future_max_margin = asset_info["future_max_margin"] - max_margin
-        future_max_loss = asset_info["future_max_loss"] - loss_asset
-
-        total_account_position = asset_info["total_account_position"]
-        future_account_position = asset_info["future_account_position"]
-        future_opened_position = asset_info["future_opened_position"] - position
-
-        conn = Conn(self.db_name)
-        conn.insert(
-            """
-            INSERT INTO {} (symbol, exchange, total_account_asset, future_account_asset, future_max_margin, 
-            future_max_loss, total_account_position, future_account_position, future_opened_position,
-            snapshot_timestamp, snapshot_datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.format(self.asset_table_name),
-            (
-                self.symbol, self.exchange, total_account_asset, future_account_asset, future_max_margin,
-                future_max_loss, total_account_position, future_account_position, future_opened_position,
-                snapshot_timestamp, snapshot.format("YYYY-MM-DD HH:mm:ss"),
-            ),
+    def freeze(self, amount, position, timestamp):
+        if amount >= 0 or position <= 0:
+            raise RuntimeError("the freeze input param error")
+        m = moment.get(timestamp)
+        self.__add_account_flow_item(
+            subject=SUBJECT_FREEZE,
+            amount=amount,
+            position=position,
+            timestamp=timestamp,
+            datetime=m.format("YYYY-MM-DD HH:mm:ss"),
         )
+
+    def unfreeze(self, amount, position, timestamp):
+        if amount <= 0 or position >= 0:
+            raise RuntimeError("the unfreeze input param error")
+        m = moment.get(timestamp)
+        self.__add_account_flow_item(
+            subject=SUBJECT_UNFREEZE,
+            amount=amount,
+            position=position,
+            timestamp=timestamp,
+            datetime=m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+
+    def income(self, amount, timestamp):
+        m = moment.get(timestamp)
+        self.__add_account_flow_item(
+            subject=SUBJECT_INCOME,
+            amount=amount,
+            position=0,
+            timestamp=timestamp,
+            datetime=m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+
+    def get_last_asset(self, timestamp):
+        sql = """
+        SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND timestamp <= ? 
+        ORDER BY timestamp DESC, id DESC LIMIT 1
+        """.format(self.asset_table_name)
+        params = (self.symbol, self.exchange, timestamp)
+
+        if self.mode == MODE_BACKTEST:
+            sql = """
+            SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND timestamp <= ? AND backtest_id = ?
+            ORDER BY timestamp DESC, id DESC LIMIT 1
+            """.format(self.asset_table_name)
+            params = (self.symbol, self.exchange, timestamp, self.backtest_id)
+        conn = Conn(self.db_name)
+        return conn.query_one(sql, params)

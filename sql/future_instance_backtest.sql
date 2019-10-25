@@ -1,8 +1,9 @@
-CREATE TABLE `future_instances_strategy` (
+CREATE TABLE `future_instance_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
   `contract_type` varchar(20) NOT NULL,
+  `backtest_id` varchar(32) NOT NULL COMMENT 'backtest unique id',
   `strategy` varchar(20) NOT NULL,
   `unit_amount` int(11) NOT NULL,
   `lever` int(11) NOT NULL,
@@ -18,7 +19,7 @@ CREATE TABLE `future_instances_strategy` (
   `freeze_asset` decimal(20,8) COMMENT 'the freeze asset for this instance',
 
   `open_type` tinyint(1) NOT NULL COMMENT '1: open_long, 2: open_short',
-  `open_place_type` varchar(10) NOT NULL COMMENT 'taker maker market',
+  `open_place_type` varchar(10) NOT NULL COMMENT 'taker maker',
   `open_skill` varchar(20) NOT NULL COMMENT 'ratio diff none',
   `open_times` tinyint(1) NOT NULL COMMENT '1~9',
   `open_swap` tinyint(1) NOT NULL,

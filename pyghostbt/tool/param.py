@@ -62,7 +62,7 @@ param_save_input = {
 
 # param 从配置文件中读取到然后， 验证类型，是否定义过
 class Param(object):
-    __TABLE_NAME_FORMAT__ = "{trade_type}_params_{mode}"
+    __TABLE_NAME_FORMAT__ = "{trade_type}_param_{mode}"
 
     def __init__(self, *args, **kwargs):
         super().__init__()

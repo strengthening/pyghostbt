@@ -44,7 +44,10 @@ class Kline(object):
         self.contract_type = kwargs.get("contract_type")
 
         self.db_name = kwargs.get("db_name", "default")
-        self.table_name = self.__TABLE_NAME_FORMAT__.format(trade_type=self.trade_type, symbol=self.symbol)
+        self.table_name = self.__TABLE_NAME_FORMAT__.format(
+            trade_type=self.trade_type,
+            symbol=self.symbol,
+        )
 
         self.sql = """SELECT * FROM {} WHERE symbol = ? AND exchange = ?{}
          AND `interval` = ? AND timestamp >= ? AND timestamp < ? 

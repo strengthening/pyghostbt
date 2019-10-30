@@ -1,6 +1,5 @@
 BIRTHDAY_BTC = "2009-01-03 00:00:00"
 
-# MODE_STRATEGY = "strategy"
 MODE_BACKTEST = "backtest"
 MODE_ONLINE = "online"
 MODE_OFFLINE = "offline"
@@ -49,3 +48,7 @@ SUBJECT_TRANSACTION_FEE = "transaction_fee"  # 交易费用，amount正负皆可
 SUBJECT_LOAN_FEE = "loan_fee"  # 借贷费用，amount为负， position 为0
 SUBJECT_ADJUSTMENT = "adjustment"  # 与交易所服务器进行校准，amount正负皆可， position 为0
 SUBJECT_TRANSFER = "transfer"  # 内部转账，amount正负皆可， position 为0
+
+ORDER_PLACE_TYPE_MAKER = "maker"
+ORDER_PLACE_TYPE_TAKER = "taker"
+ORDER_PLACE_TYPE_SWAPPER = "swapper"

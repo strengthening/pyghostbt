@@ -45,5 +45,6 @@ CREATE TABLE `future_instance_backtest` (
   UNIQUE KEY `symbol` (`symbol`, `exchange`, `contract_type`, `strategy`, `interval`, `start_timestamp`),
   KEY `open_timestamp` (`open_timestamp`, `status`),
   KEY `start_timestamp` (`start_timestamp`),
-  KEY `liquidate_timestamp` (`liquidate_timestamp`)
+  KEY `liquidate_timestamp` (`liquidate_timestamp`),
+  KEY `backtest_id` (`backtest_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

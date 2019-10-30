@@ -8,5 +8,6 @@ CREATE TABLE `future_param_backtest` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `instance_id` (`instance_id`, `param_name`)
+  UNIQUE KEY `instance_id` (`instance_id`, `param_name`),
+  KEY `backtest_id` (`backtest_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -1,9 +1,10 @@
-from pyghostbt.tool.runtime import StrategyRuntime
+from pyghostbt.tool.runtime import Runtime
 
 
-class Strategy(StrategyRuntime):
+class Strategy(Runtime):
     def __init__(self, kw):
         super().__init__(kw)
+        self._o = None
 
     def get_wait_open(self, timestamp):
         pass

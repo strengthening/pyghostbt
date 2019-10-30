@@ -58,7 +58,7 @@ asset_input = {
 
 account_flow_input = {
     "type": "object",
-    "required": ["symbol", "exchange", "contract_type", "subject", "amount", "position", "timestamp", "datetime"],
+    "required": ["subject", "amount", "position", "timestamp", "datetime"],
     "properties": {
         "subject": {
             "type": "string",
@@ -90,7 +90,7 @@ account_flow_input = {
 
 
 class Asset(object):
-    __ASSET_TABLE_NAME_FORMAT__ = "{trade_type}_assets_{mode}"
+    __ASSET_TABLE_NAME_FORMAT__ = "{trade_type}_asset_{mode}"
     __ACCOUNT_FLOW_TABLE_NAME_FORMAT__ = "{trade_type}_account_flow_{mode}"
 
     def __init__(self, **kwargs):
@@ -104,14 +104,14 @@ class Asset(object):
         self.mode = kwargs.get("mode")
         self.backtest_id = kwargs.get("backtest_id")
 
-        self.db_name = kwargs.get("db_name", "default")
+        self.db_name = kwargs.get("db_name_asset") or kwargs.get("db_name")
         self.asset_table_name = self.__ASSET_TABLE_NAME_FORMAT__.format(
             trade_type=self.trade_type,
-            symbol=self.mode,
+            mode=self.mode if self.mode == MODE_BACKTEST else "strategy",
         )
         self.account_flow_table_name = self.__ACCOUNT_FLOW_TABLE_NAME_FORMAT__.format(
             trade_type=self.trade_type,
-            symbol=self.mode,
+            mode=self.mode if self.mode == MODE_BACKTEST else "strategy",
         )
 
     def __add_account_flow_item(self, **kwargs):
@@ -123,7 +123,7 @@ class Asset(object):
             position: the position of the flow
             timestamp: the item of account flow
 
-        :return: the uuid len 32
+        :return: None
         """
 
         if self.mode != MODE_BACKTEST:

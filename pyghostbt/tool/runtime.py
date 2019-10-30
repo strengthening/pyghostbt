@@ -1,8 +1,8 @@
 from pyghostbt.const import *
-from pyghostbt.util import uuid
 from pyghostbt.tool import param
 from pyghostbt.tool import kline
-from pyghostbt.tool import indice
+from pyghostbt.tool import asset
+from pyghostbt.tool import indices
 
 from jsonschema import validate
 
@@ -71,6 +71,7 @@ class Runtime(dict):
     def __init__(self, kw):
         super().__init__(kw)
         validate(instance=self, schema=runtime_input)
+
         self._p = param.Param(
             self["param"],
             db_name=self.get("db_name_param") or self.get("db_name"),
@@ -79,30 +80,37 @@ class Runtime(dict):
         )
 
         self._k = kline.Kline(
+            trade_type=self.get("trade_type"),
             symbol=self.get("symbol"),
             exchange=self.get("exchange"),
-            trade_type=self.get("trade_type"),
             contract_type=self.get("contract_type"),
             db_name=self.get("db_name_kline") or self.get("db_name"),
         )
 
-        self._i = indice.Indice()
+        self._a = asset.Asset(
+            trade_type=self.get("trade_type"),
+            symbol=self.get("symbol"),
+            exchange=self.get("exchange"),
+            contract_type=self.get("contract_type"),
+            db_name=self.get("db_name_asset") or self.get("db_name"),
+            mode=self.get("mode"),
+            backtest_id=self.get("backtest_id"),
+        )
+
+        self._i = indices.Indices()
 
 
-class StrategyRuntime(Runtime):
-    def __init__(self, kw):
-        super().__init__(kw)
-
-
-class BacktestRuntime(Runtime):
-    def __init__(self, kw):
-        super().__init__(kw)
-        self.__setitem__("backtest_id", uuid())
-
-        strategy_kw = kw.copy()
-        strategy_kw["mode"] = MODE_ONLINE
-
-        self._s = StrategyRuntime(strategy_kw)
+# class StrategyRuntime(Runtime):
+#     def __init__(self, kw):
+#         super().__init__(kw)
+#
+#
+# class BacktestRuntime(Runtime):
+#     def __init__(self, kw):
+#         super().__init__(kw)
+#
+#         strategy_kw = kw.copy()
+#         self._s = StrategyRuntime(strategy_kw)
 
 
 

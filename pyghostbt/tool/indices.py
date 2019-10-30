@@ -4,7 +4,7 @@ import talib
 import numpy as np
 
 
-class Indice(object):
+class Indices(object):
     @staticmethod
     def EMA(close, time_period=30):
         if isinstance(close, list):

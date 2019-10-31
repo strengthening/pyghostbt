@@ -3,7 +3,6 @@ from pyghostbt.tool import param
 from pyghostbt.tool import kline
 from pyghostbt.tool import asset
 from pyghostbt.tool import indices
-
 from jsonschema import validate
 
 runtime_input = {

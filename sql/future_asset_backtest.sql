@@ -14,7 +14,7 @@ CREATE TABLE `future_asset_backtest` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `symbol` (`symbol`, `exchange`, `timestamp`),
+  UNIQUE KEY `symbol` (`symbol`, `exchange`, `timestamp`, `backtest_id`),
   KEY `timestamp` (`timestamp`),
   KEY `datetime` (`datetime`),
   KEY `backtest_id` (`backtest_id`)

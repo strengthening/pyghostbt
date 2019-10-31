@@ -1,11 +1,11 @@
 from pyghostbt.util import uuid
-from pyghostbt.strategy import Strategy
 
 
-class Backtest(Strategy):
+class Backtest(dict):
     def __init__(self, kw):
         super().__init__(kw)
-        self.__setitem__("backtest_id", uuid())
+        if not self.get("backtest_id"):
+            self.__setitem__("backtest_id", uuid())
 
     def back_test_wait_open(self):
         pass

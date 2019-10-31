@@ -137,7 +137,7 @@ class Asset(object):
             """.format(self.account_flow_table_name),
             (
                 self.symbol, self.exchange, self.contract_type, self.backtest_id,
-                kwargs.get("subject"), kwargs.get("amount"), kwargs.get("position"),
+                kwargs.get("subject"), int(kwargs.get("amount") * 100000000 + 0.5), kwargs.get("position"),
                 kwargs.get("timestamp"), kwargs.get("datetime"),
             ),
         )

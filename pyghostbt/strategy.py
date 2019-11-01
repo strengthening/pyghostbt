@@ -50,14 +50,14 @@ class Strategy(Runtime):
                 self["symbol"], self["exchange"], self["contract_type"],
                 self["strategy"], INSTANCE_STATUS_WAIT_OPEN, 0, self["backtest_id"],
             )
-        # 线上环境中应该查找对应的instance记录来确定最新的 instance_id
+        # 线上环境中应该查找对应的instance记录来确定最新的 id
         item = conn.query_one(query_sql.format(**self), params)
         if item:
-            self.__setitem__("instance_id", item["id"])
-        # 回测时生成对应的 instance_id
+            self.__setitem__("id", item["id"])
+        # 回测时生成对应的 id
         if self["mode"] == MODE_BACKTEST and item is None:
-            id = conn.insert(insert_sql.format(**self), params)
-            self.__setitem__("instance_id", id)
+            last_insert_id = conn.insert(insert_sql.format(**self), params)
+            self.__setitem__("id", last_insert_id)
 
     def get_opening(self, timestamp):
         pass

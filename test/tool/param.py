@@ -4,10 +4,6 @@ from pyghostbt.tool.param import *
 from pyghostbt.const import *
 
 config = {
-    "instance_id": 1,
-    "trade_type": TRADE_TYPE_FUTURE,
-    "mode": MODE_BACKTEST,
-    "db_name": "test",
     PARAM_NAME_POSITION: 1.1,
     PARAM_NAME_MAX_ABS_LOSS: -0.05
 }
@@ -19,10 +15,13 @@ class TestToolParams(unittest.TestCase):
     #     p.save()
 
     def test_load(self):
-        p = Param(**{
-            "instance_id": 1,
-            "trade_type": TRADE_TYPE_FUTURE,
-            "mode": MODE_BACKTEST,
-            "db_name": "test",
-        })
-        print(p.load())
+        p = Param(
+            config,
+            instance_id=1,
+            trade_type=TRADE_TYPE_FUTURE, mode=MODE_BACKTEST, db_name="test",
+        )
+        print(p)
+        # p.save(1)
+        p.load(1)
+        print(p)
+

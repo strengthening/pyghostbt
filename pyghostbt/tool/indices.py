@@ -4,7 +4,10 @@ import talib
 import numpy as np
 
 
-class Indices(object):
+class Indices(dict):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
     @staticmethod
     def EMA(close, time_period=30):
         if isinstance(close, list):
@@ -30,8 +33,8 @@ class Indices(object):
     @staticmethod
     def ATR(candles, time_period=14):
         return talib.ATR(
-            np.array([k["high"] for k in candles]),
-            np.array([k["low"] for k in candles]),
-            np.array([k["close"] for k in candles]),
+            np.array([float(k["high"]) for k in candles]),
+            np.array([float(k["low"]) for k in candles]),
+            np.array([float(k["close"]) for k in candles]),
             time_period,
         )

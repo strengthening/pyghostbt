@@ -1,12 +1,62 @@
 # 策略技术指标
-
 import talib
 import numpy as np
 
+from jsonschema import validate
+from pyghostbt.const import *
+from pyanalysis.mysql import Conn
+
+# 在此处设置对应的指标名称常量名称
+# 真实波动幅度，
+INDICES_NAME_ATR = "atr"
+
+indices_input = {
+    "type": "object",
+    "properties": {
+        INDICES_NAME_ATR: {"type": "integer", "minimum": 0, "maximum": 100000000}
+    }
+}
+
+indices_config = {
+    "type": "object",
+    "required": ["trade_type", "db_name", "mode"],
+    "properties": {
+        "trade_type": {
+            "type": "string",
+            "enum": [TRADE_TYPE_FUTURE, TRADE_TYPE_SWAP, TRADE_TYPE_MARGIN, TRADE_TYPE_SPOT]
+        },
+        "db_name": {
+            "type": "string", "minLength": 1
+        },
+        "mode": {
+            "type": "string",
+            "enum": [MODE_ONLINE, MODE_OFFLINE, MODE_BACKTEST],
+        },
+        # "backtest_id": {
+        #     "type": "string",
+        #     "minLength": 32,
+        #     "maxLength": 32
+        # },
+    }
+}
+
 
 class Indices(dict):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+
+    __TABLE_NAME_FORMAT__ = "{trade_type}_indices_{mode}"
+
+    def __init__(self, indices, **kwargs):
+        validate(instance=indices, schema=indices_input)
+        validate(instance=kwargs, schema=indices_config)
+        super().__init__(indices)
+
+        self._db_name = kwargs.get("db_name")
+        self._mode = kwargs.get("mode")
+        self._trade_type = kwargs.get("trade_type")
+        self._table_name = self.__TABLE_NAME_FORMAT__.format(
+            trade_type=self._trade_type,
+            mode=self._mode,
+        )
 
     @staticmethod
     def EMA(close, time_period=30):
@@ -38,3 +88,52 @@ class Indices(dict):
             np.array([float(k["close"]) for k in candles]),
             time_period,
         )
+
+    def load(self, instance_id):
+        conn = Conn(self._db_name)
+        results = conn.query(
+            "SELECT * FROM {} WHERE instance_id = ?".format(self._table_name),
+            (instance_id,),
+        )
+        for result in results:
+            if result["indices_type"] == INDICES_TYPE_INTEGER:
+                self[result["indices_name"]] = int(result["indices_value"])
+            elif result["indices_type"] == INDICES_TYPE_FLOAT:
+                self[result["indices_name"]] = float(result["indices_value"])
+            else:
+                self[result["indices_name"]] = result["indices_value"]
+
+    def save(self, instance_id):
+        if self._mode != MODE_BACKTEST:
+            raise RuntimeError("You only can save data in backtest mode")
+        # 入库前保证属性没有被篡改
+        validate(instance=self, schema=indices_input)
+
+        params = []
+        for name in self:
+            if isinstance(self[name], int):
+                params.append(
+                    (instance_id, name, PARAM_TYPE_INTEGER, str(self[name]))
+                )
+            elif isinstance(self[name], float):
+                params.append(
+                    (instance_id, name, PARAM_TYPE_FLOAT, str(self[name]))
+                )
+            else:
+                params.append(
+                    (instance_id, name, PARAM_TYPE_STRING, self[name])
+                )
+
+        if len(params) == 0:
+            return
+
+        conn = Conn(self._db_name)
+        indices_sql = "INSERT INTO {} (instance_id, indices_name, indices_type, indices_value) VALUES ".format(
+            self._table_name,
+        )
+        indices_sql += "(%s, %s, %s, %s), " * len(params)
+        indices_sql = indices_sql[:-2]
+        sql_params = ()
+        for param in params:
+            sql_params += param
+        conn.execute(indices_sql, sql_params)

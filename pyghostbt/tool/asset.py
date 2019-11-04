@@ -89,7 +89,7 @@ account_flow_input = {
 }
 
 
-class Asset(object):
+class Asset(dict):
     __ASSET_TABLE_NAME_FORMAT__ = "{trade_type}_asset_{mode}"
     __ACCOUNT_FLOW_TABLE_NAME_FORMAT__ = "{trade_type}_account_flow_{mode}"
 
@@ -97,21 +97,21 @@ class Asset(object):
         super().__init__()
         validate(instance=kwargs, schema=asset_input)
 
-        self.symbol = kwargs.get("symbol")
-        self.exchange = kwargs.get("exchange")
-        self.contract_type = kwargs.get("contract_type")
-        self.trade_type = kwargs.get("trade_type")
-        self.mode = kwargs.get("mode")
-        self.backtest_id = kwargs.get("backtest_id")
+        self._symbol = kwargs.get("symbol")
+        self._exchange = kwargs.get("exchange")
+        self._contract_type = kwargs.get("contract_type")
+        self._trade_type = kwargs.get("trade_type")
+        self._mode = kwargs.get("mode")
+        self._backtest_id = kwargs.get("backtest_id")
 
         self.db_name = kwargs.get("db_name_asset") or kwargs.get("db_name")
-        self.asset_table_name = self.__ASSET_TABLE_NAME_FORMAT__.format(
-            trade_type=self.trade_type,
-            mode=self.mode if self.mode == MODE_BACKTEST else "strategy",
+        self._asset_table_name = self.__ASSET_TABLE_NAME_FORMAT__.format(
+            trade_type=self._trade_type,
+            mode=self._mode if self._mode == MODE_BACKTEST else "strategy",
         )
-        self.account_flow_table_name = self.__ACCOUNT_FLOW_TABLE_NAME_FORMAT__.format(
-            trade_type=self.trade_type,
-            mode=self.mode if self.mode == MODE_BACKTEST else "strategy",
+        self._account_flow_table_name = self.__ACCOUNT_FLOW_TABLE_NAME_FORMAT__.format(
+            trade_type=self._trade_type,
+            mode=self._mode if self._mode == MODE_BACKTEST else "strategy",
         )
 
     def __add_account_flow_item(self, **kwargs):
@@ -126,7 +126,7 @@ class Asset(object):
         :return: None
         """
 
-        if self.mode != MODE_BACKTEST:
+        if self._mode != MODE_BACKTEST:
             raise RuntimeError("Only backtest mode can insert data into table. ")
         validate(instance=kwargs, schema=account_flow_input)
         conn = Conn(self.db_name)
@@ -134,9 +134,9 @@ class Asset(object):
             """
             INSERT INTO {} (symbol, exchange, contract_type, backtest_id, subject, amount,
             position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.format(self.account_flow_table_name),
+            """.format(self._account_flow_table_name),
             (
-                self.symbol, self.exchange, self.contract_type, self.backtest_id,
+                self._symbol, self._exchange, self._contract_type, self._backtest_id,
                 kwargs.get("subject"), int(kwargs.get("amount") * 100000000 + 0.5), kwargs.get("position"),
                 kwargs.get("timestamp"), kwargs.get("datetime"),
             ),
@@ -146,7 +146,7 @@ class Asset(object):
             """SELECT SUM(position) AS position FROM {}
             WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ?
             """.format(self.account_flow_table_name),
-            (self.symbol, self.exchange, self.backtest_id, kwargs.get("timestamp"))
+            (self._symbol, self._exchange, self._backtest_id, kwargs.get("timestamp"))
         )["position"]
 
         amount = conn.query_one(
@@ -154,21 +154,21 @@ class Asset(object):
             SELECT SUM(amount)/100000000 AS amount FROM {} 
             WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ?
             AND subject NOT IN (?, ?)
-            """.format(self.account_flow_table_name),
+            """.format(self._account_flow_table_name),
             (
-                self.symbol, self.exchange, self.backtest_id, kwargs.get("timestamp"),
+                self._symbol, self._exchange, self._backtest_id, kwargs.get("timestamp"),
                 SUBJECT_FREEZE, SUBJECT_UNFREEZE,
             ),
         )["amount"]
 
         conn.insert(
             """
-            INSERT INTO {} (symbol, exchange, backtest_id, total_account_asset, future_account_asset,
-            future_freeze_asset, total_account_position, future_account_position, future_freeze_position,
-            timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.format(self.asset_table_name),
+            INSERT INTO {} (symbol, exchange, backtest_id, total_asset, sub_asset, sub_freeze_asset, 
+            total_position, sub_position, sub_freeze_position, timestamp, datetime) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.format(self._asset_table_name),
             (
-                self.symbol, self.exchange, self.backtest_id, amount, 0, 0, 0, 0, position,
+                self._symbol, self._exchange, self._backtest_id, amount, 0, 0, 0, 0, position,
                 kwargs.get("timestamp"), kwargs.get("datetime"),
             )
         )
@@ -218,18 +218,25 @@ class Asset(object):
             datetime=m.format("YYYY-MM-DD HH:mm:ss"),
         )
 
-    def get_last_asset(self, timestamp):
+    def load(self, timestamp):
         sql = """
         SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND timestamp <= ? 
         ORDER BY timestamp DESC, id DESC LIMIT 1
-        """.format(self.asset_table_name)
-        params = (self.symbol, self.exchange, timestamp)
+        """.format(self._asset_table_name)
+        params = (self._symbol, self._exchange, timestamp)
 
-        if self.mode == MODE_BACKTEST:
+        if self._mode == MODE_BACKTEST:
             sql = """
             SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND timestamp <= ? AND backtest_id = ?
             ORDER BY timestamp DESC, id DESC LIMIT 1
-            """.format(self.asset_table_name)
-            params = (self.symbol, self.exchange, timestamp, self.backtest_id)
+            """.format(self._asset_table_name)
+            params = (self._symbol, self._exchange, timestamp, self._backtest_id)
         conn = Conn(self.db_name)
-        return conn.query_one(sql, params)
+        result = conn.query_one(sql, params)
+        self["total_asset"] = result["total_asset"]
+        self["sub_asset"] = result["sub_asset"]
+        self["sub_freeze_asset"] = result["sub_freeze_asset"]
+        self["total_position"] = result["total_position"]
+        self["sub_position"] = result["sub_position"]
+        self["sub_freeze_position"] = result["sub_freeze_position"]
+        return self

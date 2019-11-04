@@ -91,7 +91,7 @@ class Param(dict):
         for param_name in self:
             if isinstance(self[param_name], int):
                 params.append(
-                    (instance_id, param_name, PARAM_TYPE_INTEGER, str([param_name]))
+                    (instance_id, param_name, PARAM_TYPE_INTEGER, str(self[param_name]))
                 )
             elif isinstance(self[param_name], float):
                 params.append(

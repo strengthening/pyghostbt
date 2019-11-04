@@ -1,5 +1,8 @@
 from pyanalysis.mysql import Conn
 from pyghostbt.tool.runtime import Runtime
+from pyghostbt.tool.asset import Asset
+from pyghostbt.tool.indices import Indices
+from pyghostbt.tool.param import Param
 from pyghostbt.const import *
 from jsonschema import validate
 
@@ -10,6 +13,9 @@ strategy_input = {
         "strategy": {
             "type": "string"
         },
+        "id": {
+            "type": "integer",
+        },
     }
 }
 
@@ -18,7 +24,41 @@ class Strategy(Runtime):
     def __init__(self, kw):
         super().__init__(kw)
         validate(instance=kw, schema=strategy_input)
-        self._o = None
+        # 初始化各个组件
+        self["asset"] = Asset(
+            trade_type=self.get("trade_type"),
+            symbol=self.get("symbol"),
+            exchange=self.get("exchange"),
+            contract_type=self.get("contract_type"),
+            db_name=self.get("db_name_asset") or self.get("db_name"),
+            mode=self.get("mode"),
+            backtest_id=self.get("backtest_id"),
+        )
+        self["indices"] = Indices()
+        self["param"] = Param(
+            self["param"],
+            db_name=self.get("db_name_param") or self.get("db_name"),
+            mode=self.get("mode"),
+            trade_type=self.get("trade_type"),
+        )
+
+        instance_id = kw.get("id")
+        if instance_id is not None:
+            conn = Conn(self["db_name"])
+            instance = conn.query_one(
+                "SELECT * FROM {trade_type}_instance_{mode} WHERE id = ?".format(**self),
+                (instance_id, ),
+            )
+
+            self["strategy"] = instance["strategy"]
+            self["interval"] = instance["interval"]
+            self["param"] = self["param"].load(instance_id)
+            self["indices"] = self["indices"].load(instance_id)
+
+            if self["trade_type"] == TRADE_TYPE_FUTURE:
+                self["unit_amount"] = instance["unit_amount"]
+                self["lever"] = instance["lever"]
+                self["status"] = instance["status"]
 
     def get_wait_open(self, timestamp):
         # 原则：数据库中instance表中永远有一条 状态为 wait_open的订单

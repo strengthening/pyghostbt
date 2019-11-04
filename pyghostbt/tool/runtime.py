@@ -1,8 +1,5 @@
 from pyghostbt.const import *
-from pyghostbt.tool import param
 from pyghostbt.tool import kline
-from pyghostbt.tool import asset
-from pyghostbt.tool import indices
 from jsonschema import validate
 
 runtime_input = {
@@ -71,12 +68,12 @@ class Runtime(dict):
         super().__init__(kw)
         validate(instance=self, schema=runtime_input)
 
-        self._p = param.Param(
-            self["param"],
-            db_name=self.get("db_name_param") or self.get("db_name"),
-            mode=self.get("mode"),
-            trade_type=self.get("trade_type"),
-        )
+        # self._p = param.Param(
+        #     self["param"],
+        #     db_name=self.get("db_name_param") or self.get("db_name"),
+        #     mode=self.get("mode"),
+        #     trade_type=self.get("trade_type"),
+        # )
 
         self._k = kline.Kline(
             trade_type=self.get("trade_type"),
@@ -85,18 +82,6 @@ class Runtime(dict):
             contract_type=self.get("contract_type"),
             db_name=self.get("db_name_kline") or self.get("db_name"),
         )
-
-        self._a = asset.Asset(
-            trade_type=self.get("trade_type"),
-            symbol=self.get("symbol"),
-            exchange=self.get("exchange"),
-            contract_type=self.get("contract_type"),
-            db_name=self.get("db_name_asset") or self.get("db_name"),
-            mode=self.get("mode"),
-            backtest_id=self.get("backtest_id"),
-        )
-
-        self._i = indices.Indices()
 
 
 # class StrategyRuntime(Runtime):

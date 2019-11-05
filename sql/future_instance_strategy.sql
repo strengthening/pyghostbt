@@ -18,7 +18,7 @@ CREATE TABLE `future_instance_strategy` (
   `freeze_asset` decimal(20,8) COMMENT 'the freeze asset for this instance',
 
   `open_type` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1: open_long, 2: open_short',
-  `open_place_type` varchar(10) NOT NULL DEFAULT 'taker' COMMENT 'taker maker market',
+  `open_place_type` varchar(10) NOT NULL DEFAULT 't_taker' COMMENT 't_taker t_maker b_taker b_maker o_swap l_swap market',
   `open_times` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1~9',
   `open_swap` tinyint(1) NOT NULL DEFAULT '0',
   `open_fee` decimal(20,8) COMMENT '开仓费用',
@@ -26,12 +26,12 @@ CREATE TABLE `future_instance_strategy` (
   `open_datetime` datetime COMMENT '首次开仓时间',
 
   `liquidate_type` tinyint(1) NOT NULL DEFAULT '3' COMMENT '3: liquidate_long, 4: liquidate_short',
-  `liquidate_place_type` varchar(10) NOT NULL DEFAULT 'taker' COMMENT 'taker maker',
+  `liquidate_place_type` varchar(10) NOT NULL DEFAULT 'b_taker' COMMENT 't_taker t_maker b_taker b_maker o_swap l_swap market',
   `liquidate_times` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1~9',
   `liquidate_swap` tinyint(1) NOT NULL DEFAULT '0',
   `liquidate_fee` decimal(20,8) COMMENT '- anchored_asset*position*rate',
-  `liquidate_timestamp` bigint(13) COMMENT '首次平仓时间戳',
-  `liquidate_datetime` datetime COMMENT '首次平仓时间',
+  `liquidate_timestamp` bigint(13) COMMENT '最晚平仓时间戳',
+  `liquidate_datetime` datetime COMMENT '最晚平仓时间',
 
   `param_position` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',
   `param_max_abs_loss` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT '',

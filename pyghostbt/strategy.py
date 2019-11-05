@@ -34,7 +34,12 @@ class Strategy(Runtime):
             mode=self.get("mode"),
             backtest_id=self.get("backtest_id"),
         )
-        self["indices"] = Indices()
+        self["indices"] = Indices(
+            self.get("indices") or {},
+            mode=self.get("mode"),
+            trade_type=self.get("trade_type"),
+            db_name=self.get("db_name"),
+        )
         self["param"] = Param(
             self["param"],
             db_name=self.get("db_name_param") or self.get("db_name"),

@@ -65,11 +65,23 @@ future_order_input = {
     "properties": {
         "contract_type": {
             "type": "string",
-            "enum": [CONTRACT_TYPE_THIS_WEEK, CONTRACT_TYPE_NEXT_WEEK, CONTRACT_TYPE_QUARTER],
+            "enum": [
+                CONTRACT_TYPE_THIS_WEEK,
+                CONTRACT_TYPE_NEXT_WEEK,
+                CONTRACT_TYPE_QUARTER,
+            ],
         },
         "place_type": {
             "type": "string",
-            "enum": [ORDER_PLACE_TYPE_MAKER, ORDER_PLACE_TYPE_TAKER, ORDER_PLACE_TYPE_SWAPPER],
+            "enum": [
+                ORDER_PLACE_TYPE_T_MAKER,
+                ORDER_PLACE_TYPE_B_MAKER,
+                ORDER_PLACE_TYPE_T_TAKER,
+                ORDER_PLACE_TYPE_B_TAKER,
+                ORDER_PLACE_TYPE_O_SWAP,
+                ORDER_PLACE_TYPE_L_SWAP,
+                ORDER_PLACE_TYPE_MARKET,
+            ],
         },
         "price": {
             "type": "integer",

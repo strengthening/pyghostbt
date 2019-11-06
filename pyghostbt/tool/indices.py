@@ -13,7 +13,7 @@ INDICES_NAME_ATR = "atr"
 indices_input = {
     "type": "object",
     "properties": {
-        INDICES_NAME_ATR: {"type": "integer", "minimum": 0, "maximum": 100000000}
+        INDICES_NAME_ATR: {"type": "number", "minimum": 0, "maximum": 100000000}
     }
 }
 

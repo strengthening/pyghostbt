@@ -15,8 +15,11 @@ CREATE TABLE `future_instance_backtest` (
   `finish_datetime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
 -- some columns about the asset
-  `total_asset` decimal(20,8) COMMENT 'the total asset for future',
-  `freeze_asset` decimal(20,8) COMMENT 'the freeze asset for this instance',
+  `total_asset` decimal(20,8) COMMENT 'the total account asset for future',
+  `sub_freeze_asset` decimal(20,8) COMMENT 'the sub account freeze asset for this instance',
+
+  `param_position` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',
+  `param_max_abs_loss` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT '',
 
   `open_type` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1: open_long, 2: open_short',
   `open_place_type` varchar(10) NOT NULL DEFAULT 't_taker' COMMENT 't_taker t_maker b_taker b_maker o_swap l_swap market',
@@ -33,9 +36,6 @@ CREATE TABLE `future_instance_backtest` (
   `liquidate_fee` decimal(20,8) COMMENT '- anchored_asset*position*rate',
   `liquidate_timestamp` bigint(13) COMMENT '最晚平仓时间戳',
   `liquidate_datetime` datetime COMMENT '最晚平仓时间',
-
-  `param_position` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',
-  `param_max_abs_loss` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT '',
 
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

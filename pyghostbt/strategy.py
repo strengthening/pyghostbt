@@ -19,6 +19,111 @@ strategy_input = {
     }
 }
 
+instance_param = {
+    "type": "object",
+    "required": [
+        "id", "symbol", "exchange", "strategy", "status", "interval",
+        "start_timestamp", "start_datetime", "finish_timestamp", "finish_datetime",
+        "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss",
+        "open_timestamp", "open_datetime", "liquidate_timestamp", "liquidate_datetime",
+    ],
+    "properties": {
+        "id": {
+            "type": "integer",
+        },
+        "symbol": {
+            "type": "string",
+        },
+        "exchange": {
+            "type": "string",
+        },
+        "contract_type": {
+            "type": "string",
+            "enum": [
+                CONTRACT_TYPE_THIS_WEEK,
+                CONTRACT_TYPE_NEXT_WEEK,
+                CONTRACT_TYPE_QUARTER,
+            ],
+        },
+        "strategy": {
+            "type": "string",
+        },
+        "status": {
+            "type": "integer",
+            "enum": [
+                INSTANCE_STATUS_WAIT_OPEN,
+                INSTANCE_STATUS_OPENING,
+                INSTANCE_STATUS_WAIT_LIQUIDATE,
+                INSTANCE_STATUS_LIQUIDATING,
+                INSTANCE_STATUS_FINISHED,
+                INSTANCE_STATUS_ERROR,
+            ],
+        },
+        "interval": {
+            "type": "string",
+            "enum": [
+                KLINE_INTERVAL_1MIN,
+                KLINE_INTERVAL_15MIN,
+                KLINE_INTERVAL_1HOUR,
+                KLINE_INTERVAL_4HOUR,
+                KLINE_INTERVAL_1DAY,
+                KLINE_INTERVAL_1WEEK,
+            ],
+        },
+        "unit_amount": {
+            "type": "integer",
+            "enum": [10, 100],
+        },
+        "lever": {
+            "type": "integer",
+            "enum": [10, 20],
+        },
+        "start_timestamp": {
+            "type": "integer",
+            "minimum": 1000000000000,
+            "maximum": 3000000000000,
+        },
+        "start_datetime": {
+            "type": "string"
+        },
+        "finish_timestamp": {
+            "type": "integer",
+            "minimum": 1000000000000,
+            "maximum": 3000000000000,
+        },
+        "finish_datetime": {
+            "type": "string"
+        },
+        "total_asset": {
+            "type": "number",
+            "minimum": 0,
+        },
+        "sub_freeze_asset": {
+            "type": "number"
+        },
+        "param_position": {
+            "type": "number"
+        },
+        "param_max_abs_loss": {
+            "type": "number",
+            "minimum": -0.5,
+            "maximum": 0.5,
+        },
+        "open_timestamp": {
+            "type": "integer",
+        },
+        "open_datetime": {
+            "type": ["string", "null"],
+        },
+        "liquidate_timestamp": {
+            "type": "integer",
+        },
+        "liquidate_datetime": {
+            "type": ["string", "null"],
+        }
+    }
+}
+
 
 class Strategy(Runtime):
     def __init__(self, kw):
@@ -52,7 +157,7 @@ class Strategy(Runtime):
             conn = Conn(self["db_name"])
             instance = conn.query_one(
                 "SELECT * FROM {trade_type}_instance_{mode} WHERE id = ?".format(**self),
-                (instance_id, ),
+                (instance_id,),
             )
 
             self["strategy"] = instance["strategy"]
@@ -64,6 +169,10 @@ class Strategy(Runtime):
                 self["unit_amount"] = instance["unit_amount"]
                 self["lever"] = instance["lever"]
                 self["status"] = instance["status"]
+
+    @staticmethod
+    def check_instance(instance):
+        validate(instance=instance, schema=instance_param)
 
     def get_wait_open(self, timestamp):
         # 原则：数据库中instance表中永远有一条 状态为 wait_open的订单
@@ -112,3 +221,25 @@ class Strategy(Runtime):
 
     def get_liquidating(self, timestamp):
         pass
+
+    # 根据 instance参数更新当前的对象的属性。
+    def load(self, instance):
+        if self["id"] != instance["id"]:
+            raise RuntimeError("the ")
+
+        self["status"] = instance["status"]
+        self["start_timestamp"] = instance["start_timestamp"]
+        self["start_datetime"] = instance["start_datetime"]
+        self["finish_timestamp"] = instance["finish_timestamp"]
+        self["finish_datetime"] = instance["finish_datetime"]
+        self["total_asset"] = instance["total_asset"]
+        self["sub_freeze_asset"] = instance["sub_freeze_asset"]
+
+        self["param_position"] = instance["param_position"]
+        self["param_max_abs_loss"] = instance["param_max_abs_loss"]
+
+        self["open_timestamp"] = instance["open_timestamp"]
+        self["open_datetime"] = instance["open_datetime"]
+
+        self["liquidate_timestamp"] = instance["liquidate_timestamp"]
+        self["liquidate_datetime"] = instance["liquidate_datetime"]

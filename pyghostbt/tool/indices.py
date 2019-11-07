@@ -42,7 +42,6 @@ indices_config = {
 
 
 class Indices(dict):
-
     __TABLE_NAME_FORMAT__ = "{trade_type}_indices_{mode}"
 
     def __init__(self, indices, **kwargs):
@@ -109,31 +108,28 @@ class Indices(dict):
         # 入库前保证属性没有被篡改
         validate(instance=self, schema=indices_input)
 
-        params = []
         for name in self:
             if isinstance(self[name], int):
-                params.append(
-                    (instance_id, name, PARAM_TYPE_INTEGER, str(self[name]))
-                )
+                sql_param = (PARAM_TYPE_INTEGER, str(self[name]), instance_id, name)
             elif isinstance(self[name], float):
-                params.append(
-                    (instance_id, name, PARAM_TYPE_FLOAT, str(self[name]))
-                )
+                sql_param = (PARAM_TYPE_FLOAT, str(self[name]), instance_id, name)
             else:
-                params.append(
-                    (instance_id, name, PARAM_TYPE_STRING, self[name])
+                sql_param = (PARAM_TYPE_STRING, self[name], instance_id, name)
+
+            conn = Conn(self._db_name)
+            one = conn.query_one(
+                "SELECT * FROM {} WHERE instance_id = ? AND indices_name = ?".format(self._table_name),
+                (instance_id, name)
+            )
+            if one:
+                conn.execute(
+                    "UPDATE {} SET indices_type = ?, indices_value = ?"
+                    " WHERE instance_id = ? AND indices_name = ?".format(self._table_name),
+                    sql_param,
                 )
 
-        if len(params) == 0:
-            return
-
-        conn = Conn(self._db_name)
-        indices_sql = "INSERT INTO {} (instance_id, indices_name, indices_type, indices_value) VALUES ".format(
-            self._table_name,
-        )
-        indices_sql += "(%s, %s, %s, %s), " * len(params)
-        indices_sql = indices_sql[:-2]
-        sql_params = ()
-        for param in params:
-            sql_params += param
-        conn.execute(indices_sql, sql_params)
+            conn.insert(
+                "INSERT INTO {} (indices_type, indices_value, instance_id, indices_name)"
+                " VALUES (?, ?, ?, ?)".format(self._table_name),
+                sql_param,
+            )

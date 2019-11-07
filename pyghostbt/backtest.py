@@ -193,6 +193,14 @@ class Backtest(Strategy):
 
             self["order"].deal()
             self["order"].save(check=True)
+            self["param"].save()
+            self["indices"].save()
+
+            # TODO param save
+            # TODO indices save
+            # TODO
+
+
             # conn.insert(
             #     "INSERT INTO {trade_type}_order_{mode} (instance_id, sequence, place_type, type, price,"
             #     " amount, avg_price, deal_amount, status, lever, fee, symbol, exchange, contract_type,"
@@ -210,19 +218,6 @@ class Backtest(Strategy):
             # )
         else:
             raise RuntimeError("I think can not insert in this place. ")
-        # conn.insert(
-        #     "INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, contract_type, strategy, unit_amount,"
-        #     "lever, status, `interval`, start_timestamp, start_datetime, finish_timestamp, finish_datetime,"
-        #     "total_asset, sub_freeze_asset, param_position, param_max_abs_loss)"
-        #     " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(**self),
-        #     (
-        #         self["symbol"], self["exchange"], self["contract_type"],
-        #         self["strategy"], self["unit_amount"], self["lever"], self["status"],
-        #         self["interval"], self["start_timestamp"], self["start_datetime"],
-        #         self["finish_timestamp"], self["finish_datetime"], self["total_asset"],
-        #         self["sub_freeze_asset"], self["param_position"], self["param_max_abs_loss"],
-        #     ),
-        # )
 
     # 判断是否触发，将结果返回，并将触发的instance信息合并到当前的对象上。
     def back_test_wait_open(self, timestamp: int) -> bool:

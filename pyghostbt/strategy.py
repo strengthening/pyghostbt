@@ -245,3 +245,5 @@ class Strategy(Runtime):
         self["liquidate_datetime"] = instance["liquidate_datetime"]
 
         self["order"] = instance["order"]
+        self["param"] = instance["param"]
+        self["indices"] = instance["indices"]

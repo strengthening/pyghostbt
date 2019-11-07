@@ -243,3 +243,5 @@ class Strategy(Runtime):
 
         self["liquidate_timestamp"] = instance["liquidate_timestamp"]
         self["liquidate_datetime"] = instance["liquidate_datetime"]
+
+        self["order"] = instance["order"]

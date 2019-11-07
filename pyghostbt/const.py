@@ -49,6 +49,11 @@ SUBJECT_LOAN_FEE = "loan_fee"  # 借贷费用，amount为负， position 为0
 SUBJECT_ADJUSTMENT = "adjustment"  # 与交易所服务器进行校准，amount正负皆可， position 为0
 SUBJECT_TRANSFER = "transfer"  # 内部转账，amount正负皆可， position 为0
 
+ORDER_TYPE_OPEN_LONG = 1
+ORDER_TYPE_OPEN_SHORT = 2
+ORDER_TYPE_LIQUIDATE_LONG = 3
+ORDER_TYPE_LIQUIDATE_SHORT = 4
+
 ORDER_PLACE_TYPE_T_MAKER = "t_maker"
 ORDER_PLACE_TYPE_B_MAKER = "b_maker"
 ORDER_PLACE_TYPE_T_TAKER = "t_taker"

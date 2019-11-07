@@ -102,6 +102,9 @@ class Backtest(Strategy):
         if not self.get("backtest_id"):
             self.__setitem__("backtest_id", uuid())
 
+        # self._slippage = 0.01  # 滑点百分比
+        # self._fee = -0.0005  # 手续费比例
+
     @staticmethod
     def __compare_candle_with_instance(candle, instance):
         ask_side = instance["order"]["type"] == 1 or instance["order"]["type"] == 4
@@ -113,6 +116,10 @@ class Backtest(Strategy):
             if match:
                 instance["order"]["place_timestamp"] = candle["timestamp"]
                 instance["order"]["place_datetime"] = candle["date"]
+                instance["order"]["deal_timestamp"] = candle["timestamp"]
+                instance["order"]["deal_datetime"] = candle["date"]
+                instance["order"]["due_timestamp"] = candle["due_timestamp"]
+                instance["order"]["due_datetime"] = candle["due_date"]
                 return instance
         elif instance["order"]["place_type"] == "b_taker":
             column_name = "low" if ask_side else "high"
@@ -121,6 +128,10 @@ class Backtest(Strategy):
             if match:
                 instance["order"]["place_timestamp"] = candle["timestamp"]
                 instance["order"]["place_datetime"] = candle["date"]
+                instance["order"]["deal_timestamp"] = candle["timestamp"]
+                instance["order"]["deal_datetime"] = candle["date"]
+                instance["order"]["due_timestamp"] = candle["due_timestamp"]
+                instance["order"]["due_datetime"] = candle["due_date"]
                 return instance
         else:
             raise RuntimeError("do not support the other place_type")
@@ -179,22 +190,24 @@ class Backtest(Strategy):
                     self["id"],
                 ),
             )
-            order = self["order"]
-            conn.insert(
-                "INSERT INTO {trade_type}_order_{mode} (instance_id, sequence, place_type, type, price,"
-                " amount, avg_price, deal_amount, status, lever, fee, symbol, exchange, contract_type,"
-                " place_timestamp, place_datetime, deal_timestamp, deal_datetime, due_timestamp, due_datetime,"
-                " swap_timestamp, swap_datetime, cancel_timestamp, cancel_datetime) VALUES"
-                " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(**self),
-                (
-                    order["instance_id"], order["sequence"], order["place_type"], order["type"], order["price"],
-                    order["amount"], order["avg_price"], order["deal_amount"], order["status"], order["lever"],
-                    order["fee"], order["symbol"], order["exchange"], order["contract_type"], order["place_timestamp"],
-                    order["place_datetime"], order["deal_timestamp"], order["deal_datetime"], order["due_timestamp"],
-                    order["due_datetime"], order["swap_timestamp"], order["swap_datetime"],
-                    order["cancel_timestamp"], order["cancel_datetime"],
-                )
-            )
+
+            self["order"].deal()
+            self["order"].save(check=True)
+            # conn.insert(
+            #     "INSERT INTO {trade_type}_order_{mode} (instance_id, sequence, place_type, type, price,"
+            #     " amount, avg_price, deal_amount, status, lever, fee, symbol, exchange, contract_type,"
+            #     " place_timestamp, place_datetime, deal_timestamp, deal_datetime, due_timestamp, due_datetime,"
+            #     " swap_timestamp, swap_datetime, cancel_timestamp, cancel_datetime) VALUES"
+            #     " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(**self),
+            #     (
+            #         order["instance_id"], order["sequence"], order["place_type"], order["type"], order["price"],
+            #         order["amount"], order["avg_price"], order["deal_amount"], order["status"], order["lever"],
+            #         order["fee"], order["symbol"], order["exchange"], order["contract_type"], order["place_timestamp"],
+            #         order["place_datetime"], order["deal_timestamp"], order["deal_datetime"], order["due_timestamp"],
+            #         order["due_datetime"], order["swap_timestamp"], order["swap_datetime"],
+            #         order["cancel_timestamp"], order["cancel_datetime"],
+            #     )
+            # )
         else:
             raise RuntimeError("I think can not insert in this place. ")
         # conn.insert(

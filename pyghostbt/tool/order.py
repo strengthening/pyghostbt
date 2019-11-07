@@ -187,18 +187,44 @@ class FutureOrder(Order):
             validate(instance=self, schema=future_order_init)
             validate(instance=self, schema=future_order_save)
         conn = Conn(self._db_name)
+        one = conn.query_one(
+            "SELECT id FROM {} WHERE instance_id = ? AND sequence = ?".format(self._table_name),
+            (
+                self["instance_id"], self["sequence"],
+            )
+        )
+
+        if one:
+            conn.execute(
+                "UPDATE {} SET place_type = ?, `type` = ?, price = ?, amount = ?,"
+                " avg_price = ?, deal_amount = ?, status = ?, lever = ?, fee = ?,"
+                " symbol = ?, exchange = ?, contract_type = ?, place_timestamp = ?, place_datetime = ?,"
+                " deal_timestamp = ?, deal_datetime = ?, due_timestamp = ?, due_datetime = ?,"
+                " swap_timestamp = ?, swap_datetime = ?, cancel_timestamp = ?, cancel_datetime = ?"
+                " WHERE instance_id = ? AND sequence = ?",
+                (
+                    self["place_type"], self["type"], self["price"], self["amount"],
+                    self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"],
+                    self["symbol"], self["exchange"], self["contract_type"], self["place_timestamp"], self["place_datetime"],
+                    self["deal_timestamp"], self["deal_datetime"], self["due_timestamp"], self["due_datetime"],
+                    self["swap_timestamp"], self["swap_datetime"], self["cancel_timestamp"], self["cancel_datetime"],
+                    self["instance_id"], self["sequence"],
+                ),
+            )
+            return
+
         conn.insert(
             "INSERT INTO {} (instance_id, sequence, place_type, `type`, price, amount,"
             " avg_price, deal_amount, status, lever, fee, symbol, exchange, contract_type,"
-            " place_timestamp, place_date, deal_timestamp, deal_date, due_timestamp,"
-            " due_date, swap_timestamp, swap_date, cancel_timestamp, cancel_date)"
+            " place_timestamp, place_datetime, deal_timestamp, deal_datetime, due_timestamp,"
+            " due_datetime, swap_timestamp, swap_datetime, cancel_timestamp, cancel_datetime)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(self._table_name),
             (
                 self["instance_id"], self["sequence"], self["place_type"], self["type"], self["price"], self["amount"],
                 self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"], self["symbol"],
-                self["exchange"], self["contract_type"], self["place_timestamp"], self["place_date"],
-                self["deal_timestamp"], self["deal_date"], self["due_timestamp"], self["due_date"],
-                self["swap_timestamp"], self["swap_date"], self["cancel_timestamp"], self["cancel_date"]
+                self["exchange"], self["contract_type"], self["place_timestamp"], self["place_datetime"],
+                self["deal_timestamp"], self["deal_datetime"], self["due_timestamp"], self["due_datetime"],
+                self["swap_timestamp"], self["swap_datetime"], self["cancel_timestamp"], self["cancel_datetime"]
             ),
         )
 

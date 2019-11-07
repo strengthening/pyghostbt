@@ -87,30 +87,28 @@ class Param(dict):
         # 入库前保证属性没有被篡改
         validate(instance=self, schema=param_input)
 
-        params = []
+        conn = Conn(self._db_name)
         for param_name in self:
             if isinstance(self[param_name], int):
-                params.append(
-                    (instance_id, param_name, PARAM_TYPE_INTEGER, str(self[param_name]))
-                )
+                sql_param = (PARAM_TYPE_INTEGER, str(self[param_name]), instance_id, param_name)
             elif isinstance(self[param_name], float):
-                params.append(
-                    (instance_id, param_name, PARAM_TYPE_FLOAT, str(self[param_name]))
-                )
+                sql_param = (PARAM_TYPE_FLOAT, str(self[param_name]), instance_id, param_name)
             else:
-                params.append(
-                    (instance_id, param_name, PARAM_TYPE_STRING, self[param_name])
-                )
-        if len(params) == 0:
-            return
+                sql_param = (PARAM_TYPE_STRING, self[param_name], instance_id, param_name)
+            one = conn.query_one(
+                "SELECT * FROM {} WHERE instance_id = ? AND param_name = ?".format(self._table_name),
+                (instance_id, param_name)
+            )
 
-        conn = Conn(self._db_name)
-        param_future_sql = "INSERT INTO {} (instance_id, param_name, param_type, param_value) VALUES ".format(
-            self._table_name,
-        )
-        param_future_sql += "(%s, %s, %s, %s), " * len(params)
-        param_future_sql = param_future_sql[:-2]
-        sql_params = ()
-        for param in params:
-            sql_params += param
-        conn.execute(param_future_sql, sql_params)
+            if one:
+                conn.execute(
+                    "UPDATE {} SET param_type = ?, param_value = ?"
+                    " WHERE instance_id = ? AND param_name = ?".format(self._table_name),
+                    sql_param,
+                )
+
+            conn.insert(
+                "INSERT INTO {} (param_type, param_value, instance_id, param_name)"
+                " VALUES (?, ?, ?, ?)".format(self._table_name),
+                sql_param
+            )

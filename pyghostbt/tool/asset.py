@@ -145,7 +145,7 @@ class Asset(dict):
         position = conn.query_one(
             """SELECT SUM(position) AS position FROM {}
             WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ?
-            """.format(self.account_flow_table_name),
+            """.format(self._account_flow_table_name),
             (self._symbol, self._exchange, self._backtest_id, kwargs.get("timestamp"))
         )["position"]
 

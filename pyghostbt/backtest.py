@@ -193,29 +193,9 @@ class Backtest(Strategy):
 
             self["order"].deal()
             self["order"].save(check=True)
-            self["param"].save()
-            self["indices"].save()
+            self["param"].save(self["id"])
+            self["indices"].save(self["id"])
 
-            # TODO param save
-            # TODO indices save
-            # TODO
-
-
-            # conn.insert(
-            #     "INSERT INTO {trade_type}_order_{mode} (instance_id, sequence, place_type, type, price,"
-            #     " amount, avg_price, deal_amount, status, lever, fee, symbol, exchange, contract_type,"
-            #     " place_timestamp, place_datetime, deal_timestamp, deal_datetime, due_timestamp, due_datetime,"
-            #     " swap_timestamp, swap_datetime, cancel_timestamp, cancel_datetime) VALUES"
-            #     " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(**self),
-            #     (
-            #         order["instance_id"], order["sequence"], order["place_type"], order["type"], order["price"],
-            #         order["amount"], order["avg_price"], order["deal_amount"], order["status"], order["lever"],
-            #         order["fee"], order["symbol"], order["exchange"], order["contract_type"], order["place_timestamp"],
-            #         order["place_datetime"], order["deal_timestamp"], order["deal_datetime"], order["due_timestamp"],
-            #         order["due_datetime"], order["swap_timestamp"], order["swap_datetime"],
-            #         order["cancel_timestamp"], order["cancel_datetime"],
-            #     )
-            # )
         else:
             raise RuntimeError("I think can not insert in this place. ")
 

@@ -218,7 +218,7 @@ class FutureOrder(Order):
             " avg_price, deal_amount, status, lever, fee, symbol, exchange, contract_type,"
             " place_timestamp, place_datetime, deal_timestamp, deal_datetime, due_timestamp,"
             " due_datetime, swap_timestamp, swap_datetime, cancel_timestamp, cancel_datetime)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(self._table_name),
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(self._table_name),
             (
                 self["instance_id"], self["sequence"], self["place_type"], self["type"], self["price"], self["amount"],
                 self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"], self["symbol"],

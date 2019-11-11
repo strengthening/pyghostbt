@@ -45,7 +45,7 @@ class Strategy1st(Strategy):
             standard=True,
         )
 
-        self._a.init_account(10)
+        self["a"].init_account(10)
 
         price = max([result["high"] for result in results])
         asset = self._a.get_last_asset(timestamp)["total_account_asset"]
@@ -53,7 +53,7 @@ class Strategy1st(Strategy):
 
         return [FutureOrder(
             trade_type=self["trade_type"],
-            place_type=ORDER_PLACE_TYPE_TAKER,
+            place_type=ORDER_PLACE_TYPE_T_TAKER,
             db_name=self["db_name"],
             mode=self["mode"],
             symbol=self["symbol"],

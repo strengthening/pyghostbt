@@ -156,7 +156,10 @@ class Strategy(Runtime):
         if instance_id is not None:
             conn = Conn(self["db_name"])
             instance = conn.query_one(
-                "SELECT * FROM {trade_type}_instance_{mode} WHERE id = ?".format(**self),
+                "SELECT * FROM {trade_type}_instance_{mode} WHERE id = ?".format(
+                    trade_type=self["trade_type"],
+                    mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+                ),
                 (instance_id,),
             )
 
@@ -205,7 +208,13 @@ class Strategy(Runtime):
                 self["strategy"], INSTANCE_STATUS_WAIT_OPEN, 0, self["backtest_id"],
             )
         # 线上环境中应该查找对应的instance记录来确定最新的 id
-        item = conn.query_one(query_sql.format(**self), params)
+        item = conn.query_one(
+            query_sql.format(
+                trade_type=self["trade_type"],
+                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+            ),
+            params
+        )
         if item:
             self.__setitem__("id", item["id"])
         # 回测时生成对应的 id
@@ -222,8 +231,20 @@ class Strategy(Runtime):
     def get_liquidating(self, timestamp):
         pass
 
+    def get_instances(self, timestamp):
+        if self["status"] == INSTANCE_STATUS_WAIT_OPEN:
+            return self.get_wait_open(timestamp)
+        elif self["status"] == INSTANCE_STATUS_OPENING:
+            return self.get_opening(timestamp)
+        elif self["status"] == INSTANCE_STATUS_WAIT_LIQUIDATE:
+            return self.get_wait_liquidate(timestamp)
+        elif self["status"] == INSTANCE_STATUS_LIQUIDATING:
+            return self.get_liquidating(timestamp)
+        else:
+            raise RuntimeError("Can not recognise the instance status")
+
     # 根据 instance参数更新当前的对象的属性。
-    def load(self, instance):
+    def load_from_memory(self, instance):
         if self["id"] != instance["id"]:
             raise RuntimeError("the ")
 
@@ -247,3 +268,42 @@ class Strategy(Runtime):
         self["order"] = instance["order"]
         self["param"] = instance["param"]
         self["indices"] = instance["indices"]
+
+    # TODO 从数据库中读取对应的信息。
+    def load_from_db(self, instance_id):
+        conn = Conn(self["db_name"])
+        tmp_instance = conn.query_one(
+            "SELECT * FROM {}_instance_{} WHERE id = ?".format(
+                trade_type=self["trade_type"],
+                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+            ),
+            (instance_id, ),
+        )
+
+        if tmp_instance is None:
+            raise RuntimeError("the instance is None. ")
+
+        self["status"] = tmp_instance["status"]
+        self["start_timestamp"] = tmp_instance["start_timestamp"]
+        self["start_datetime"] = tmp_instance["start_datetime"]
+        self["finish_timestamp"] = tmp_instance["finish_timestamp"]
+        self["finish_datetime"] = tmp_instance["finish_datetime"]
+        self["total_asset"] = tmp_instance["total_asset"]
+        self["sub_freeze_asset"] = tmp_instance["sub_freeze_asset"]
+
+        self["param_position"] = tmp_instance["param_position"]
+        self["param_max_abs_loss"] = tmp_instance["param_max_abs_loss"]
+
+        self["open_timestamp"] = tmp_instance["open_timestamp"]
+        self["open_datetime"] = tmp_instance["open_datetime"]
+
+        self["liquidate_timestamp"] = tmp_instance["liquidate_timestamp"]
+        self["liquidate_datetime"] = tmp_instance["liquidate_datetime"]
+
+        param = Param({}, trade_type=self["trade_type"], db_name=self["db_name"], mode=self["mode"])
+        param.load(instance_id)
+        self["param"] = param
+
+        indices = Indices({}, trade_type=self["trade_type"], db_name=self["db_name"], mode=self["mode"])
+        indices.load(instance_id)
+        self["indices"] = indices

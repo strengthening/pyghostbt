@@ -102,15 +102,15 @@ future_order_init = {
 future_order_save = {
     "type": "object",
     "required": [
-        "mode", "avg_price", "deal_amount", "fee", "place_timestamp", "place_datetime",
+        "avg_price", "deal_amount", "fee", "place_timestamp", "place_datetime",
         "deal_timestamp", "deal_datetime", "due_timestamp", "due_datetime",
         "swap_timestamp", "swap_datetime", "cancel_timestamp", "cancel_datetime",
     ],
     "properties": {
-        "mode": {
-            "type": "string",
-            "enum": [MODE_BACKTEST],
-        },
+        # "mode": {
+        #     "type": "string",
+        #     "enum": [MODE_BACKTEST],
+        # },
         "avg_price": {
             "type": "integer",
         },
@@ -163,20 +163,20 @@ class FutureOrder(Order):
         )
         self["fee"] = order.get("fee") or 0.0
         self["swap_timestamp"] = order.get("swap_timestamp") or 0
-        self["swap_date"] = order.get("swap_date")
+        self["swap_datetime"] = order.get("swap_datetime")
         self["cancel_timestamp"] = order.get("cancel_timestamp") or 0
-        self["cancel_date"] = order.get("cancel_date")
+        self["cancel_datetime"] = order.get("cancel_datetime")
 
     # 假设已经成交
     def deal(self, slippage=0.01, fee=-0.0005):
         # 回测时假设已经成交。
+        self["deal_amount"] = self["amount"]
+        self["status"] = 1
         if self["type"] == ORDER_TYPE_OPEN_LONG or self["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
             self["avg_price"] = int(self["price"] * (1 + slippage))
-            self["deal_amount"] = self["amount"]
             self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000 / self["avg_price"]
         elif self["type"] == ORDER_TYPE_OPEN_SHORT or self["type"] == ORDER_TYPE_LIQUIDATE_LONG:
             self["avg_price"] = int(self["price"] * (1 - slippage))
-            self["deal_amount"] = self["amount"]
             self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000 / self["avg_price"]
         else:
             raise RuntimeError("error order type")

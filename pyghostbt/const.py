@@ -1,8 +1,10 @@
 BIRTHDAY_BTC = "2009-01-03 00:00:00"
 
 MODE_BACKTEST = "backtest"
+MODE_STRATEGY = "strategy"
 MODE_ONLINE = "online"
 MODE_OFFLINE = "offline"
+
 
 KLINE_INTERVAL_1MIN = "1min"
 KLINE_INTERVAL_15MIN = "15min"

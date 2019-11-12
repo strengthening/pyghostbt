@@ -34,9 +34,8 @@ instance_param = {
         "status": {
             "type": "integer",
             "enum": [
-                INSTANCE_STATUS_WAIT_OPEN,
+                INSTANCE_STATUS_WAITING,
                 INSTANCE_STATUS_OPENING,
-                INSTANCE_STATUS_WAIT_LIQUIDATE,
                 INSTANCE_STATUS_LIQUIDATING,
                 INSTANCE_STATUS_FINISHED,
                 INSTANCE_STATUS_ERROR,
@@ -200,13 +199,10 @@ class Backtest(Strategy):
             raise RuntimeError("I think can not insert in this place. ")
 
     # 判断是否触发，将结果返回，并将触发的instance信息合并到当前的对象上。
-    def back_test_wait_open(self, timestamp: int) -> bool:
+    def back_test_waiting(self, timestamp: int) -> bool:
         pass
 
     def back_test_opening(self, timestamp: int) -> bool:
-        pass
-
-    def back_test_wait_liquidate(self, timestamp: int) -> bool:
         pass
 
     def back_test_liquidating(self, timestamp: int) -> bool:

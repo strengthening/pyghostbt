@@ -51,9 +51,8 @@ instance_param = {
         "status": {
             "type": "integer",
             "enum": [
-                INSTANCE_STATUS_WAIT_OPEN,
+                INSTANCE_STATUS_WAITING,
                 INSTANCE_STATUS_OPENING,
-                INSTANCE_STATUS_WAIT_LIQUIDATE,
                 INSTANCE_STATUS_LIQUIDATING,
                 INSTANCE_STATUS_FINISHED,
                 INSTANCE_STATUS_ERROR,
@@ -177,7 +176,7 @@ class Strategy(Runtime):
     def check_instance(instance):
         validate(instance=instance, schema=instance_param)
 
-    def get_wait_open(self, timestamp):
+    def get_waiting(self, timestamp):
         # 原则：数据库中instance表中永远有一条 状态为 wait_open的订单
         conn = Conn(self["db_name"])
         query_sql = """
@@ -190,7 +189,7 @@ class Strategy(Runtime):
         """
         params = (
             self["symbol"], self["exchange"], self["strategy"],
-            INSTANCE_STATUS_WAIT_OPEN, 0
+            INSTANCE_STATUS_WAITING, 0
         )
 
         if self["trade_type"] == TRADE_TYPE_FUTURE:
@@ -205,7 +204,7 @@ class Strategy(Runtime):
             """
             params = (
                 self["symbol"], self["exchange"], self["contract_type"],
-                self["strategy"], INSTANCE_STATUS_WAIT_OPEN, 0, self["backtest_id"],
+                self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
             )
         # 线上环境中应该查找对应的instance记录来确定最新的 id
         item = conn.query_one(
@@ -225,19 +224,14 @@ class Strategy(Runtime):
     def get_opening(self, timestamp):
         pass
 
-    def get_wait_liquidate(self, timestamp):
-        pass
-
     def get_liquidating(self, timestamp):
         pass
 
     def get_instances(self, timestamp):
-        if self["status"] == INSTANCE_STATUS_WAIT_OPEN:
-            return self.get_wait_open(timestamp)
+        if self["status"] == INSTANCE_STATUS_WAITING:
+            return self.get_waiting(timestamp)
         elif self["status"] == INSTANCE_STATUS_OPENING:
             return self.get_opening(timestamp)
-        elif self["status"] == INSTANCE_STATUS_WAIT_LIQUIDATE:
-            return self.get_wait_liquidate(timestamp)
         elif self["status"] == INSTANCE_STATUS_LIQUIDATING:
             return self.get_liquidating(timestamp)
         else:

@@ -6,7 +6,7 @@ CREATE TABLE `future_instance_strategy` (
   `strategy` varchar(20) NOT NULL,
   `unit_amount` int(11) NOT NULL DEFAULT '10',
   `lever` int(11) NOT NULL DEFAULT '10',
-  `status` tinyint(1) NOT NULL COMMENT '0: wait_open, 1: opening, 2: wait_liquidate, 3: liquidating, 4: finished, 9: error',
+  `status` tinyint(1) NOT NULL COMMENT '0: waiting, 1: opening, 2: liquidating, 3: finished, 9: error',
   `interval` varchar(20) NOT NULL DEFAULT '1day' COMMENT 'the strategy logic generate interval: 1min/1hour/4hour/1day/1week',
   `start_timestamp` bigint(13) NOT NULL,
   `start_datetime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,

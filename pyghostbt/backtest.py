@@ -1,5 +1,4 @@
 from jsonschema import validate
-from pyghostbt.util import uuid
 from pyghostbt.strategy import Strategy
 from pyghostbt.const import *
 from pyanalysis.mysql import Conn
@@ -8,7 +7,8 @@ instance_param = {
     "type": "object",
     "required": [
         "id", "symbol", "exchange", "strategy", "status", "interval", "start_timestamp", "start_datetime",
-        "finish_timestamp", "finish_datetime", "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss",
+        "finish_timestamp", "finish_datetime", "total_asset", "sub_freeze_asset", "param_position",
+        "param_max_abs_loss",
     ],
     "properties": {
         "id": {
@@ -98,21 +98,16 @@ instance_param = {
 class Backtest(Strategy):
     def __init__(self, kw):
         super().__init__(kw)
-        if not self.get("backtest_id"):
-            self.__setitem__("backtest_id", uuid())
 
         # self._slippage = 0.01  # 滑点百分比
         # self._fee = -0.0005  # 手续费比例
 
     @staticmethod
     def __compare_candle_with_instance(candle, instance):
-        ask_side = instance["order"]["type"] == 1 or instance["order"]["type"] == 4
         order_price = instance["order"]["price"]
-        if instance["order"]["place_type"] == "t_taker":
-            column_name = "high" if ask_side else "low"
-            candle_price = candle[column_name]
-            match = candle_price > order_price if ask_side else candle_price < order_price
-            if match:
+        if instance["order"]["place_type"] == ORDER_PLACE_TYPE_T_TAKER:
+            candle_price = candle["high"]
+            if candle_price > order_price:
                 instance["order"]["place_timestamp"] = candle["timestamp"]
                 instance["order"]["place_datetime"] = candle["date"]
                 instance["order"]["deal_timestamp"] = candle["timestamp"]
@@ -120,11 +115,9 @@ class Backtest(Strategy):
                 instance["order"]["due_timestamp"] = candle["due_timestamp"]
                 instance["order"]["due_datetime"] = candle["due_date"]
                 return instance
-        elif instance["order"]["place_type"] == "b_taker":
-            column_name = "low" if ask_side else "high"
-            candle_price = candle[column_name]
-            match = candle_price < order_price if ask_side else candle_price > order_price
-            if match:
+        elif instance["order"]["place_type"] == ORDER_PLACE_TYPE_B_TAKER:
+            candle_price = candle["low"]
+            if candle_price < order_price:
                 instance["order"]["place_timestamp"] = candle["timestamp"]
                 instance["order"]["place_datetime"] = candle["date"]
                 instance["order"]["deal_timestamp"] = candle["timestamp"]
@@ -150,6 +143,35 @@ class Backtest(Strategy):
                     return instance
         # instance 没触发
         return None
+
+    # todo 同一个timestamp中不同的due_timestamp kline
+    def __compare_candles_with_instances(self, candles, instances):
+        print(self)
+        return {}
+
+    def _back_test_swap_by_min_kline(self, swap_timestamp, due_timestamp, instances=None, standard=True):
+        candles = self._k.range_query_1(
+            swap_timestamp,
+            due_timestamp,
+            KLINE_INTERVAL_1MIN,
+            standard=standard
+        )
+
+        frag_candles = []
+        instance = None
+        for candle in candles:
+            if len(frag_candles) == 0:
+                frag_candles.append(candle)
+                continue
+            if frag_candles[0]["timestamp"] == candle["timestamp"]:
+                frag_candles.append(candle)
+                continue
+
+            frag_candles = []
+            instance = self.__compare_candles_with_instances(frag_candles, instances)
+            if instance:
+                return instance
+        return instance
 
     def _back_test_by_day_kline(self, start_timestamp, finish_timestamp, instances=None, standard=True):
         candles = self._k.raw_query(
@@ -199,11 +221,11 @@ class Backtest(Strategy):
             raise RuntimeError("I think can not insert in this place. ")
 
     # 判断是否触发，将结果返回，并将触发的instance信息合并到当前的对象上。
-    def back_test_waiting(self, timestamp: int) -> bool:
+    def back_test_waiting(self, timestamp: int) -> dict:
         pass
 
-    def back_test_opening(self, timestamp: int) -> bool:
+    def back_test_opening(self, timestamp: int) -> dict:
         pass
 
-    def back_test_liquidating(self, timestamp: int) -> bool:
+    def back_test_liquidating(self, timestamp: int) -> dict:
         pass

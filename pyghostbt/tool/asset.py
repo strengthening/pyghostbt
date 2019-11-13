@@ -176,6 +176,18 @@ class Asset(dict):
     # 回测是初始化账户，主要是注资
     def init_account(self, amount):
         m = moment.get(BIRTHDAY_BTC)
+        conn = Conn(self.db_name)
+        one = conn.query_one(
+            "SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND subject = ? AND timestamp = ?"
+            " AND backtest_id = ? LIMIT 1".format(self._account_flow_table_name),
+            (
+                self._symbol, self._exchange, SUBJECT_INJECTION,
+                m.millisecond_timestamp, self._backtest_id
+            )
+        )
+
+        if one:
+            return
         self.__add_account_flow_item(
             subject=SUBJECT_INJECTION,
             amount=amount,
@@ -233,6 +245,8 @@ class Asset(dict):
             params = (self._symbol, self._exchange, timestamp, self._backtest_id)
         conn = Conn(self.db_name)
         result = conn.query_one(sql, params)
+        if result is None:
+            raise RuntimeError("you must init_amount before backtest. ")
         self["total_asset"] = result["total_asset"]
         self["sub_asset"] = result["sub_asset"]
         self["sub_freeze_asset"] = result["sub_freeze_asset"]

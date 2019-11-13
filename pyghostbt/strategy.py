@@ -177,7 +177,7 @@ class Strategy(Runtime):
         validate(instance=instance, schema=instance_param)
 
     def get_waiting(self, timestamp):
-        # 原则：数据库中instance表中永远有一条 状态为 wait_open的订单
+        # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
         conn = Conn(self["db_name"])
         query_sql = """
         SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ?

@@ -51,7 +51,7 @@ class Kline(object):
 
         self.sql = """SELECT * FROM {} WHERE symbol = ? AND exchange = ?{}
          AND `interval` = ? AND timestamp >= ? AND timestamp < ? 
-         ORDER BY timestamp
+         ORDER BY timestamp LIMIT 100
         """.format(
             self.table_name,
             "" if self.trade_type != TRADE_TYPE_FUTURE else " AND contract_type = ? ",
@@ -97,3 +97,31 @@ class Kline(object):
             yield self.__standard_candle(candle) if standard else candle
         if len(candles) == 100:
             yield from self.range_query(candles[-1]["timestamp"] + 1000, finish_timestamp, interval, standard=standard)
+
+    def range_query_1(self, start_timestamp, finish_timestamp, interval, standard=False, due_timestamp=0):
+        conn = Conn(self.db_name)
+        params = (start_timestamp, finish_timestamp, self.symbol, self.exchange, interval)
+        candles = conn.query(
+            "SELECT * FROM {} WHERE timestamp >= ? AND timestamp < ? AND symbol = ? AND exchange = ?"
+            " AND `interval` = ? ORDER BY timestamp, due_timestamp LIMIT 100".format(self.table_name),
+            params,
+        )
+
+        if due_timestamp:
+            tmp_candles = conn.query(
+                "SELECT * FROM {} WHERE timestamp = ? AND symbol = ? AND exchange = ? AND `interval` = ?"
+                " AND due_timestamp > ?".format(self.table_name),
+                (start_timestamp, self.symbol, self.exchange, interval, due_timestamp)
+            )
+            candles = tmp_candles + candles
+        conn.close()  # 手动关闭链接。
+        for candle in candles:
+            yield self.__standard_candle(candle) if standard else candle
+        if len(candles) >= 100:
+            yield from self.range_query_1(
+                candles[-1]["timestamp"] + 1000,
+                finish_timestamp,
+                interval,
+                standard=standard,
+                due_timestamp=candles[-1]["due_timestamp"],
+            )

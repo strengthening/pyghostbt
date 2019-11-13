@@ -1,5 +1,6 @@
 from pyghostbt.const import *
 from pyghostbt.tool import kline
+from pyghostbt.util import uuid
 from jsonschema import validate
 
 runtime_input = {
@@ -67,7 +68,8 @@ class Runtime(dict):
     def __init__(self, kw):
         super().__init__(kw)
         validate(instance=self, schema=runtime_input)
-
+        if not self.get("backtest_id"):
+            self.__setitem__("backtest_id", uuid())
         # self._p = param.Param(
         #     self["param"],
         #     db_name=self.get("db_name_param") or self.get("db_name"),

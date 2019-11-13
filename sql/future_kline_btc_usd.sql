@@ -19,5 +19,6 @@ CREATE TABLE `future_kline_btc_usd` (
   UNIQUE KEY `symbol` (`symbol`,`exchange`,`contract_type`,`interval`,`date`,`due_date`),
   KEY `date` (`date`),
   KEY `timestamp` (`timestamp`),
-  KEY `due_date` (`due_date`)
+  KEY `due_date` (`due_date`),
+  KEY `symbol_2` (`symbol`,`exchange`,`contract_type`,`interval`,`timestamp`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

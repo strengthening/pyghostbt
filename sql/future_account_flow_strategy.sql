@@ -11,7 +11,7 @@ CREATE TABLE `future_account_flow_strategy` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `symbol` (`symbol`, `exchange`, `timestamp`),
+  KEY `symbol` (`symbol`, `exchange`, `subject`, `timestamp`),
   KEY `timestamp` (`timestamp`),
   KEY `datetime` (`datetime`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

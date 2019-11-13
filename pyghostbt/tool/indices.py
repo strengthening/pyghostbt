@@ -127,9 +127,9 @@ class Indices(dict):
                     " WHERE instance_id = ? AND indices_name = ?".format(self._table_name),
                     sql_param,
                 )
-
-            conn.insert(
-                "INSERT INTO {} (indices_type, indices_value, instance_id, indices_name)"
-                " VALUES (?, ?, ?, ?)".format(self._table_name),
-                sql_param,
-            )
+            else:
+                conn.insert(
+                    "INSERT INTO {} (indices_type, indices_value, instance_id, indices_name)"
+                    " VALUES (?, ?, ?, ?)".format(self._table_name),
+                    sql_param,
+                )

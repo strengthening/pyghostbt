@@ -106,9 +106,9 @@ class Param(dict):
                     " WHERE instance_id = ? AND param_name = ?".format(self._table_name),
                     sql_param,
                 )
-
-            conn.insert(
-                "INSERT INTO {} (param_type, param_value, instance_id, param_name)"
-                " VALUES (?, ?, ?, ?)".format(self._table_name),
-                sql_param
-            )
+            else:
+                conn.insert(
+                    "INSERT INTO {} (param_type, param_value, instance_id, param_name)"
+                    " VALUES (?, ?, ?, ?)".format(self._table_name),
+                    sql_param
+                )

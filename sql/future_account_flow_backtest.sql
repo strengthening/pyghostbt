@@ -12,7 +12,7 @@ CREATE TABLE `future_account_flow_backtest` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `symbol` (`symbol`, `exchange`, `backtest_id`, `timestamp`),
+  KEY `symbol` (`symbol`, `exchange`, `subject`, `timestamp`, `backtest_id`),
   KEY `timestamp` (`timestamp`),
   KEY `datetime` (`datetime`),
   KEY `backtest_id` (`backtest_id`)

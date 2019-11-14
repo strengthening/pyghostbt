@@ -62,11 +62,12 @@ class Kline(object):
         """将行情数据放大100000000倍，并四舍五入转化成int"""
         return int(the_number * 100000000 + 0.5)
 
-    def __standard_candle(self, candle):
-        candle["open"] = self.__standard_number(candle["open"])
-        candle["high"] = self.__standard_number(candle["high"])
-        candle["low"] = self.__standard_number(candle["low"])
-        candle["close"] = self.__standard_number(candle["close"])
+    @staticmethod
+    def __standard_candle(candle):
+        candle["open"] = Kline.__standard_number(candle["open"])
+        candle["high"] = Kline.__standard_number(candle["high"])
+        candle["low"] = Kline.__standard_number(candle["low"])
+        candle["close"] = Kline.__standard_number(candle["close"])
         return candle
 
     def raw_query(self, start_timestamp, finish_timestamp, interval, standard=False):
@@ -98,7 +99,7 @@ class Kline(object):
         if len(candles) == 100:
             yield from self.range_query(candles[-1]["timestamp"] + 1000, finish_timestamp, interval, standard=standard)
 
-    def range_query_1(self, start_timestamp, finish_timestamp, interval, standard=False, due_timestamp=0):
+    def range_query_all_contract(self, start_timestamp, finish_timestamp, interval, standard=False, due_timestamp=0):
         conn = Conn(self.db_name)
         params = (start_timestamp, finish_timestamp, self.symbol, self.exchange, interval)
         candles = conn.query(
@@ -118,7 +119,7 @@ class Kline(object):
         for candle in candles:
             yield self.__standard_candle(candle) if standard else candle
         if len(candles) >= 100:
-            yield from self.range_query_1(
+            yield from self.range_query_all_contract(
                 candles[-1]["timestamp"] + 1000,
                 finish_timestamp,
                 interval,

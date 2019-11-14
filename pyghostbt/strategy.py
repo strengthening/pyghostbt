@@ -23,9 +23,13 @@ instance_param = {
     "type": "object",
     "required": [
         "id", "symbol", "exchange", "strategy", "status", "interval",
-        "start_timestamp", "start_datetime", "finish_timestamp", "finish_datetime",
         "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss",
-        "open_timestamp", "open_datetime", "liquidate_timestamp", "liquidate_datetime",
+        "wait_start_timestamp", "wait_start_datetime",
+        "wait_finish_timestamp", "wait_finish_datetime",
+        "open_start_timestamp", "open_start_datetime",
+        "open_finish_timestamp", "open_finish_datetime",
+        "liquidate_start_timestamp", "liquidate_start_datetime",
+        "liquidate_finish_timestamp", "liquidate_finish_datetime",
     ],
     "properties": {
         "id": {
@@ -77,22 +81,6 @@ instance_param = {
             "type": "integer",
             "enum": [10, 20],
         },
-        "start_timestamp": {
-            "type": "integer",
-            "minimum": 1000000000000,
-            "maximum": 3000000000000,
-        },
-        "start_datetime": {
-            "type": "string"
-        },
-        "finish_timestamp": {
-            "type": "integer",
-            "minimum": 1000000000000,
-            "maximum": 3000000000000,
-        },
-        "finish_datetime": {
-            "type": "string"
-        },
         "total_asset": {
             "type": "number",
             "minimum": 0,
@@ -108,16 +96,44 @@ instance_param = {
             "minimum": -0.5,
             "maximum": 0.5,
         },
-        "open_timestamp": {
+        "wait_start_timestamp": {
+            "type": "integer",
+            "minimum": 1000000000000,
+            "maximum": 3000000000000,
+        },
+        "wait_start_datetime": {
+            "type": "string"
+        },
+        "wait_finish_timestamp": {
+            "type": "integer",
+            "minimum": 1000000000000,
+            "maximum": 3000000000000,
+        },
+        "wait_finish_datetime": {
+            "type": "string"
+        },
+        "open_start_timestamp": {
             "type": "integer",
         },
-        "open_datetime": {
+        "open_start_datetime": {
             "type": ["string", "null"],
         },
-        "liquidate_timestamp": {
+        "open_finish_timestamp": {
             "type": "integer",
         },
-        "liquidate_datetime": {
+        "open_finish_datetime": {
+            "type": ["string", "null"],
+        },
+        "liquidate_start_timestamp": {
+            "type": "integer",
+        },
+        "liquidate_start_datetime": {
+            "type": ["string", "null"],
+        },
+        "liquidate_finish_timestamp": {
+            "type": "integer",
+        },
+        "liquidate_finish_datetime": {
             "type": ["string", "null"],
         }
     }
@@ -181,10 +197,10 @@ class Strategy(Runtime):
         conn = Conn(self["db_name"])
         query_sql = """
         SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ?
-         AND status = ? AND start_timestamp = ?
+         AND status = ? AND wait_start_timestamp = ?
         """
         insert_sql = """
-        INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status, start_timestamp)
+        INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status, wait_start_timestamp)
          VALUES (?, ?, ?, ?, ?) 
         """
         params = (
@@ -195,11 +211,11 @@ class Strategy(Runtime):
         if self["trade_type"] == TRADE_TYPE_FUTURE:
             query_sql = """
             SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?
-             AND strategy = ? AND status = ? AND start_timestamp = ? AND backtest_id = ?
+             AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
             """
             insert_sql = """
             INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, contract_type, strategy, status,
-             start_timestamp, backtest_id)
+             wait_start_timestamp, backtest_id)
              VALUES (?, ?, ?, ?, ?, ?, ?) 
             """
             params = (
@@ -243,21 +259,26 @@ class Strategy(Runtime):
             raise RuntimeError("the ")
 
         self["status"] = instance["status"]
-        self["start_timestamp"] = instance["start_timestamp"]
-        self["start_datetime"] = instance["start_datetime"]
-        self["finish_timestamp"] = instance["finish_timestamp"]
-        self["finish_datetime"] = instance["finish_datetime"]
         self["total_asset"] = instance["total_asset"]
         self["sub_freeze_asset"] = instance["sub_freeze_asset"]
 
         self["param_position"] = instance["param_position"]
         self["param_max_abs_loss"] = instance["param_max_abs_loss"]
 
-        self["open_timestamp"] = instance["open_timestamp"]
-        self["open_datetime"] = instance["open_datetime"]
+        self["wait_start_timestamp"] = instance["wait_start_timestamp"]
+        self["wait_start_datetime"] = instance["wait_start_datetime"]
+        self["wait_finish_timestamp"] = instance["wait_finish_timestamp"]
+        self["wait_finish_datetime"] = instance["wait_finish_datetime"]
 
-        self["liquidate_timestamp"] = instance["liquidate_timestamp"]
-        self["liquidate_datetime"] = instance["liquidate_datetime"]
+        self["open_start_timestamp"] = instance["open_start_timestamp"]
+        self["open_start_datetime"] = instance["open_start_datetime"]
+        self["open_finish_timestamp"] = instance["open_finish_timestamp"]
+        self["open_finish_datetime"] = instance["open_finish_datetime"]
+
+        self["liquidate_start_timestamp"] = instance["liquidate_start_timestamp"]
+        self["liquidate_start_datetime"] = instance["liquidate_start_datetime"]
+        self["liquidate_finish_timestamp"] = instance["liquidate_finish_timestamp"]
+        self["liquidate_finish_datetime"] = instance["liquidate_finish_datetime"]
 
         self["order"] = instance["order"]
         self["param"] = instance["param"]
@@ -271,28 +292,33 @@ class Strategy(Runtime):
                 trade_type=self["trade_type"],
                 mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
             ),
-            (instance_id, ),
+            (instance_id,),
         )
 
         if tmp_instance is None:
             raise RuntimeError("the instance is None. ")
 
         self["status"] = tmp_instance["status"]
-        self["start_timestamp"] = tmp_instance["start_timestamp"]
-        self["start_datetime"] = tmp_instance["start_datetime"]
-        self["finish_timestamp"] = tmp_instance["finish_timestamp"]
-        self["finish_datetime"] = tmp_instance["finish_datetime"]
         self["total_asset"] = tmp_instance["total_asset"]
         self["sub_freeze_asset"] = tmp_instance["sub_freeze_asset"]
 
         self["param_position"] = tmp_instance["param_position"]
         self["param_max_abs_loss"] = tmp_instance["param_max_abs_loss"]
 
-        self["open_timestamp"] = tmp_instance["open_timestamp"]
-        self["open_datetime"] = tmp_instance["open_datetime"]
+        self["wait_start_timestamp"] = tmp_instance["wait_start_timestamp"]
+        self["wait_start_datetime"] = tmp_instance["wait_start_datetime"]
+        self["wait_finish_timestamp"] = tmp_instance["wait_finish_timestamp"]
+        self["wait_finish_datetime"] = tmp_instance["wait_finish_datetime"]
 
-        self["liquidate_timestamp"] = tmp_instance["liquidate_timestamp"]
-        self["liquidate_datetime"] = tmp_instance["liquidate_datetime"]
+        self["open_start_timestamp"] = tmp_instance["open_start_timestamp"]
+        self["open_start_datetime"] = tmp_instance["open_start_datetime"]
+        self["open_finish_timestamp"] = tmp_instance["open_finish_timestamp"]
+        self["open_finish_datetime"] = tmp_instance["open_finish_datetime"]
+
+        self["liquidate_start_timestamp"] = tmp_instance["liquidate_start_timestamp"]
+        self["liquidate_start_datetime"] = tmp_instance["liquidate_start_datetime"]
+        self["liquidate_finish_timestamp"] = tmp_instance["liquidate_finish_timestamp"]
+        self["liquidate_finish_datetime"] = tmp_instance["liquidate_finish_datetime"]
 
         param = Param({}, trade_type=self["trade_type"], db_name=self["db_name"], mode=self["mode"])
         param.load(instance_id)

@@ -1,6 +1,7 @@
 from jsonschema import validate
 from pyanalysis.mysql import Conn
 from pyghostbt.const import *
+from pyghostbt.util import standard_number
 
 kline_input = {
     "type": "object",
@@ -58,16 +59,11 @@ class Kline(object):
         )
 
     @staticmethod
-    def __standard_number(the_number):
-        """将行情数据放大100000000倍，并四舍五入转化成int"""
-        return int(the_number * 100000000 + 0.5)
-
-    @staticmethod
     def __standard_candle(candle):
-        candle["open"] = Kline.__standard_number(candle["open"])
-        candle["high"] = Kline.__standard_number(candle["high"])
-        candle["low"] = Kline.__standard_number(candle["low"])
-        candle["close"] = Kline.__standard_number(candle["close"])
+        candle["open"] = standard_number(candle["open"])
+        candle["high"] = standard_number(candle["high"])
+        candle["low"] = standard_number(candle["low"])
+        candle["close"] = standard_number(candle["close"])
         return candle
 
     def raw_query(self, start_timestamp, finish_timestamp, interval, standard=False):

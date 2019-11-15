@@ -145,10 +145,18 @@ class Backtest(Strategy):
                 if the_candle:
                     l_price = the_candle["close"]
                     l_swap_instance = instance
+                    l_swap_instance["order"]["place_timestamp"] = the_candle["timestamp"]
+                    l_swap_instance["order"]["place_datetime"] = the_candle["date"]
+                    l_swap_instance["order"]["deal_timestamp"] = the_candle["timestamp"]
+                    l_swap_instance["order"]["deal_datetime"] = the_candle["date"]
             elif instance["order"]["place_type"] == ORDER_PLACE_TYPE_O_SWAP:
                 if the_candle:
                     o_price = the_candle["close"]
                     o_swap_instance = instance
+                    o_swap_instance["order"]["place_timestamp"] = the_candle["timestamp"]
+                    o_swap_instance["order"]["place_datetime"] = the_candle["date"]
+                    o_swap_instance["order"]["deal_timestamp"] = the_candle["timestamp"]
+                    o_swap_instance["order"]["deal_datetime"] = the_candle["date"]
             else:
                 if the_candle and Backtest.__compare_candle_with_instance(the_candle, instance):
                     return [instance]
@@ -161,8 +169,8 @@ class Backtest(Strategy):
             self,
             start_timestamp: int,
             finish_timestamp: int,
-            instances=None,
-            standard=True,
+            instances: list = None,
+            standard: bool = True,
     ) -> dict:
         candles = self._k.range_query(
             start_timestamp,
@@ -182,8 +190,8 @@ class Backtest(Strategy):
             self,
             swap_timestamp: int,
             due_timestamp: int,
-            instances=None,
-            standard=True,
+            instances: list = None,
+            standard: bool = True,
     ) -> list:
         candles = self._k.range_query_all_contract(
             swap_timestamp,
@@ -244,6 +252,7 @@ class Backtest(Strategy):
                 "wait_finish_timestamp = ?, wait_finish_datetime = ?, "
                 "open_start_timestamp = ?, open_start_datetime = ?, "
                 "open_finish_timestamp = ?, open_finish_datetime = ?, "
+                "open_expired_timestamp = ?, open_expired_datetime = ?, "
                 "liquidate_start_timestamp = ?, liquidate_start_datetime = ?, "
                 "liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?, "
                 "total_asset = ?, sub_freeze_asset = ?, param_position = ?, param_max_abs_loss = ? "
@@ -255,6 +264,7 @@ class Backtest(Strategy):
                     self["wait_finish_timestamp"], self["wait_finish_datetime"],
                     self["open_start_timestamp"], self["open_start_datetime"],
                     self["open_finish_timestamp"], self["open_finish_datetime"],
+                    self["open_expired_timestamp"], self["open_expired_datetime"],
                     self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
                     self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
                     self["total_asset"], self["sub_freeze_asset"], self["param_position"], self["param_max_abs_loss"],
@@ -269,12 +279,12 @@ class Backtest(Strategy):
         else:
             raise RuntimeError("I think can not insert in this place. ")
 
-    # 判断是否触发，将结果返回，并将触发的instance信息合并到当前的对象上。
-    def back_test_waiting(self, timestamp: int) -> dict:
+    # 返回结果为该阶段结束时间，如果返回0表示该阶段没有触发
+    def back_test_waiting(self, bt_wait_start_timestamp: int) -> int:
         pass
 
-    def back_test_opening(self, timestamp: int) -> dict:
+    def back_test_opening(self, bt_open_start_timestamp: int) -> int:
         pass
 
-    def back_test_liquidating(self, timestamp: int) -> dict:
+    def back_test_liquidating(self, bt_liquidate_start_timestamp: int) -> int:
         pass

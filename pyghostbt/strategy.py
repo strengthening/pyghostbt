@@ -28,6 +28,7 @@ instance_param = {
         "wait_finish_timestamp", "wait_finish_datetime",
         "open_start_timestamp", "open_start_datetime",
         "open_finish_timestamp", "open_finish_datetime",
+        "open_expired_timestamp", "open_expired_datetime",
         "liquidate_start_timestamp", "liquidate_start_datetime",
         "liquidate_finish_timestamp", "liquidate_finish_datetime",
     ],
@@ -122,6 +123,12 @@ instance_param = {
             "type": "integer",
         },
         "open_finish_datetime": {
+            "type": ["string", "null"],
+        },
+        "open_expired_timestamp": {
+            "type": "integer",
+        },
+        "open_expired_datetime": {
             "type": ["string", "null"],
         },
         "liquidate_start_timestamp": {
@@ -274,6 +281,8 @@ class Strategy(Runtime):
         self["open_start_datetime"] = instance["open_start_datetime"]
         self["open_finish_timestamp"] = instance["open_finish_timestamp"]
         self["open_finish_datetime"] = instance["open_finish_datetime"]
+        self["open_expired_timestamp"] = instance["open_expired_timestamp"]
+        self["open_expired_datetime"] = instance["open_expired_datetime"]
 
         self["liquidate_start_timestamp"] = instance["liquidate_start_timestamp"]
         self["liquidate_start_datetime"] = instance["liquidate_start_datetime"]

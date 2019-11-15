@@ -31,6 +31,8 @@ CREATE TABLE `future_instance_backtest` (
   `open_start_datetime` datetime COMMENT '开仓开始时间',
   `open_finish_timestamp` bigint(13) COMMENT '开仓结束时间戳',
   `open_finish_datetime` datetime COMMENT '开仓结束时间',
+  `open_expired_timestamp` bigint(13) COMMENT '开仓超时时间戳',
+  `open_expired_datetime` datetime COMMENT '开仓超时时间',
 
   `liquidate_type` tinyint(1) NOT NULL DEFAULT '3' COMMENT '3: liquidate_long, 4: liquidate_short',
   `liquidate_place_type` varchar(10) NOT NULL DEFAULT 'b_taker' COMMENT 't_taker t_maker b_taker b_maker o_swap l_swap market',

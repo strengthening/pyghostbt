@@ -7,7 +7,7 @@ CREATE TABLE `future_asset_strategy` (
   `sub_freeze_asset` decimal(20,8) COMMENT '子账户冻结数量，期货账户当前冻结的资产,主要用于保证金/支付损失/支付手续费',
   `total_position` tinyint(4) COMMENT '总账户总仓位',
   `sub_position` tinyint(4) COMMENT '期货账户中的仓位',
-  `sub_freeze_position` decimal(4,4) COMMENT '期货账户中冻结的仓位',
+  `sub_freeze_position` decimal(11,4) COMMENT '期货账户中冻结的仓位',
   `timestamp` bigint(13) NOT NULL COMMENT '计算的时间戳',
   `datetime` datetime NOT NULL COMMENT '计算的日期',
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,

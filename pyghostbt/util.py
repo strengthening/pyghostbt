@@ -19,6 +19,21 @@ def uuid():
     return m.hexdigest()
 
 
+def standard_number(input_num):
+    """
+    将行情数据放大100000000倍，并四舍五入转化成int
+    :param input_num:
+    :return:
+    """
+    if input_num > 0:
+        return int(input_num * 100000000 + 0.5)
+    return int(input_num * 100000000 - 0.5)
+
+
+def real_number(std_num: int) -> float:
+    return std_num / 100000000
+
+
 def get_contract_type(timestamp, due_timestamp):
     minus = due_timestamp - timestamp
     if minus < 0:

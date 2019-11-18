@@ -188,20 +188,20 @@ class Backtest(Strategy):
 
     def _back_test_swap_by_min_kline(
             self,
-            swap_timestamp: int,
-            due_timestamp: int,
+            start_timestamp: int,
+            finish_timestamp: int,
             instances: list = None,
             standard: bool = True,
     ) -> list:
         candles = self._k.range_query_all_contract(
-            swap_timestamp,
-            due_timestamp,
+            start_timestamp,
+            finish_timestamp,
             KLINE_INTERVAL_1MIN,
             standard=standard
         )
 
         frag_candles = []
-        instance = None
+        tmp_instances = []  # 触发后的instances
         for candle in candles:
             if len(frag_candles) == 0:
                 frag_candles.append(candle)
@@ -209,12 +209,11 @@ class Backtest(Strategy):
             if frag_candles[0]["timestamp"] == candle["timestamp"]:
                 frag_candles.append(candle)
                 continue
-
-            frag_candles = []
-            instance = self.__compare_candles_with_instances(frag_candles, instances)
-            if instance:
-                return instance
-        return instance
+            tmp_instances = self.__compare_candles_with_instances(frag_candles, instances)
+            if tmp_instances:
+                return tmp_instances
+            frag_candles = [candle]
+        return tmp_instances
 
     def _back_test_by_day_kline(
             self,

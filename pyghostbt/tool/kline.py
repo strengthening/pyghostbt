@@ -66,7 +66,13 @@ class Kline(object):
         candle["close"] = standard_number(candle["close"])
         return candle
 
-    def raw_query(self, start_timestamp, finish_timestamp, interval, standard=False):
+    def raw_query(
+            self,
+            start_timestamp: int,
+            finish_timestamp: int,
+            interval: int,
+            standard: bool = False,
+    ) -> list:
         conn = Conn(self.db_name)
         params = (self.symbol, self.exchange, interval, start_timestamp, finish_timestamp)
         if self.trade_type == TRADE_TYPE_FUTURE:
@@ -82,7 +88,13 @@ class Kline(object):
 
         return candles
 
-    def range_query(self, start_timestamp, finish_timestamp, interval, standard=False):
+    def range_query(
+            self,
+            start_timestamp: int,
+            finish_timestamp: int,
+            interval: str,
+            standard: bool = False
+    ):
         conn = Conn(self.db_name)
         params = (self.symbol, self.exchange, interval, start_timestamp, finish_timestamp)
         if self.trade_type == TRADE_TYPE_FUTURE:
@@ -95,7 +107,14 @@ class Kline(object):
         if len(candles) == 100:
             yield from self.range_query(candles[-1]["timestamp"] + 1000, finish_timestamp, interval, standard=standard)
 
-    def range_query_all_contract(self, start_timestamp, finish_timestamp, interval, standard=False, due_timestamp=0):
+    def range_query_all_contract(
+            self,
+            start_timestamp: int,
+            finish_timestamp: int,
+            interval: str,
+            standard: bool = False,
+            due_timestamp: int = 0, # 辅助参数
+    ):
         conn = Conn(self.db_name)
         params = (start_timestamp, finish_timestamp, self.symbol, self.exchange, interval)
         candles = conn.query(
@@ -107,7 +126,7 @@ class Kline(object):
         if due_timestamp:
             tmp_candles = conn.query(
                 "SELECT * FROM {} WHERE timestamp = ? AND symbol = ? AND exchange = ? AND `interval` = ?"
-                " AND due_timestamp > ?".format(self.table_name),
+                " AND due_timestamp > ? ORDER BY due_timestamp".format(self.table_name),
                 (start_timestamp, self.symbol, self.exchange, interval, due_timestamp)
             )
             candles = tmp_candles + candles

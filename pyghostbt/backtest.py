@@ -272,7 +272,8 @@ class Backtest(Strategy):
             )
 
             self["order"].deal()
-            self["order"].save(check=True)
+            import json
+            self["order"].save(check=True, raw_order_data=json.dumps(self))
             self["param"].save(self["id"])
             self["indices"].save(self["id"])
         else:

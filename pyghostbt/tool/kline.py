@@ -77,7 +77,7 @@ class Kline(object):
         params = (self.symbol, self.exchange, interval, start_timestamp, finish_timestamp)
         if self.trade_type == TRADE_TYPE_FUTURE:
             params = (self.symbol, self.exchange, self.contract_type, interval, start_timestamp, finish_timestamp)
-
+        # print(self.sql, params)
         candles = conn.query(self.sql, params)
         if standard:
             std_candles = []

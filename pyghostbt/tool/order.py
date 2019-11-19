@@ -184,7 +184,7 @@ class FutureOrder(Order):
         else:
             raise RuntimeError("error order type")
 
-    def save(self, check=False):
+    def save(self, check: bool = False, raw_order_data: str = None, raw_market_data: str = None):
         if check:
             # 检验参数可用性
             validate(instance=self, schema=future_order_init)
@@ -203,14 +203,16 @@ class FutureOrder(Order):
                 " symbol = ?, exchange = ?, contract_type = ?, unit_amount = ?, "
                 " place_timestamp = ?, place_datetime = ?, deal_timestamp = ?, deal_datetime = ?,"
                 " due_timestamp = ?, due_datetime = ?, swap_timestamp = ?, swap_datetime = ?,"
-                " cancel_timestamp = ?, cancel_datetime = ? WHERE instance_id = ? AND sequence = ?",
+                " cancel_timestamp = ?, cancel_datetime = ?, raw_order_data = ?, raw_market_data = ?"
+                " WHERE instance_id = ? AND sequence = ?",
                 (
                     self["place_type"], self["type"], self["price"], self["amount"],
                     self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"],
                     self["symbol"], self["exchange"], self["contract_type"], self["unit_amount"],
                     self["place_timestamp"], self["place_datetime"], self["deal_timestamp"], self["deal_datetime"],
                     self["due_timestamp"], self["due_datetime"], self["swap_timestamp"], self["swap_datetime"],
-                    self["cancel_timestamp"], self["cancel_datetime"], self["instance_id"], self["sequence"],
+                    self["cancel_timestamp"], self["cancel_datetime"], raw_order_data, raw_market_data,
+                    self["instance_id"], self["sequence"],
                 ),
             )
         else:
@@ -220,15 +222,17 @@ class FutureOrder(Order):
                 " fee, symbol, exchange, contract_type, unit_amount,"
                 " place_timestamp, place_datetime, deal_timestamp, deal_datetime,"
                 " due_timestamp, due_datetime, swap_timestamp, swap_datetime,"
-                " cancel_timestamp, cancel_datetime) VALUES"
-                " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(self._table_name),
+                " cancel_timestamp, cancel_datetime, raw_order_data, raw_market_data) VALUES"
+                " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(
+                    self._table_name,
+                ),
                 (
                     self["instance_id"], self["sequence"], self["place_type"], self["type"], self["price"],
                     self["amount"], self["avg_price"], self["deal_amount"], self["status"], self["lever"],
                     self["fee"], self["symbol"], self["exchange"], self["contract_type"], self["unit_amount"],
                     self["place_timestamp"], self["place_datetime"], self["deal_timestamp"], self["deal_datetime"],
                     self["due_timestamp"], self["due_datetime"], self["swap_timestamp"], self["swap_datetime"],
-                    self["cancel_timestamp"], self["cancel_datetime"]
+                    self["cancel_timestamp"], self["cancel_datetime"], raw_order_data, raw_market_data,
                 ),
             )
         self.__update_instance()

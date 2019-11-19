@@ -63,7 +63,7 @@ class Order(dict):
 future_order_init = {
     "type": "object",
     "required": [
-        "contract_type", "place_type", "price", "amount", "lever",
+        "contract_type", "place_type", "price", "amount", "lever", "unit_amount",
     ],
     "properties": {
         "contract_type": {
@@ -93,6 +93,9 @@ future_order_init = {
             "type": "integer",
         },
         "lever": {
+            "type": "integer",
+        },
+        "unit_amount": {
             "type": "integer",
         }
     }
@@ -186,45 +189,149 @@ class FutureOrder(Order):
             # 检验参数可用性
             validate(instance=self, schema=future_order_init)
             validate(instance=self, schema=future_order_save)
+
         conn = Conn(self._db_name)
         one = conn.query_one(
             "SELECT id FROM {} WHERE instance_id = ? AND sequence = ?".format(self._table_name),
-            (
-                self["instance_id"], self["sequence"],
-            )
+            (self["instance_id"], self["sequence"]),
         )
 
         if one:
             conn.execute(
                 "UPDATE {} SET place_type = ?, `type` = ?, price = ?, amount = ?,"
                 " avg_price = ?, deal_amount = ?, status = ?, lever = ?, fee = ?,"
-                " symbol = ?, exchange = ?, contract_type = ?, place_timestamp = ?, place_datetime = ?,"
-                " deal_timestamp = ?, deal_datetime = ?, due_timestamp = ?, due_datetime = ?,"
-                " swap_timestamp = ?, swap_datetime = ?, cancel_timestamp = ?, cancel_datetime = ?"
-                " WHERE instance_id = ? AND sequence = ?",
+                " symbol = ?, exchange = ?, contract_type = ?, unit_amount = ?, "
+                " place_timestamp = ?, place_datetime = ?, deal_timestamp = ?, deal_datetime = ?,"
+                " due_timestamp = ?, due_datetime = ?, swap_timestamp = ?, swap_datetime = ?,"
+                " cancel_timestamp = ?, cancel_datetime = ? WHERE instance_id = ? AND sequence = ?",
                 (
                     self["place_type"], self["type"], self["price"], self["amount"],
                     self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"],
-                    self["symbol"], self["exchange"], self["contract_type"], self["place_timestamp"], self["place_datetime"],
-                    self["deal_timestamp"], self["deal_datetime"], self["due_timestamp"], self["due_datetime"],
-                    self["swap_timestamp"], self["swap_datetime"], self["cancel_timestamp"], self["cancel_datetime"],
-                    self["instance_id"], self["sequence"],
+                    self["symbol"], self["exchange"], self["contract_type"], self["unit_amount"],
+                    self["place_timestamp"], self["place_datetime"], self["deal_timestamp"], self["deal_datetime"],
+                    self["due_timestamp"], self["due_datetime"], self["swap_timestamp"], self["swap_datetime"],
+                    self["cancel_timestamp"], self["cancel_datetime"], self["instance_id"], self["sequence"],
                 ),
             )
-            return
+        else:
+            conn.insert(
+                "INSERT INTO {} (instance_id, sequence, place_type, `type`, price,"
+                " amount, avg_price, deal_amount, status, lever,"
+                " fee, symbol, exchange, contract_type, unit_amount,"
+                " place_timestamp, place_datetime, deal_timestamp, deal_datetime,"
+                " due_timestamp, due_datetime, swap_timestamp, swap_datetime,"
+                " cancel_timestamp, cancel_datetime) VALUES"
+                " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(self._table_name),
+                (
+                    self["instance_id"], self["sequence"], self["place_type"], self["type"], self["price"],
+                    self["amount"], self["avg_price"], self["deal_amount"], self["status"], self["lever"],
+                    self["fee"], self["symbol"], self["exchange"], self["contract_type"], self["unit_amount"],
+                    self["place_timestamp"], self["place_datetime"], self["deal_timestamp"], self["deal_datetime"],
+                    self["due_timestamp"], self["due_datetime"], self["swap_timestamp"], self["swap_datetime"],
+                    self["cancel_timestamp"], self["cancel_datetime"]
+                ),
+            )
+        self.__update_instance()
 
-        conn.insert(
-            "INSERT INTO {} (instance_id, sequence, place_type, `type`, price, amount,"
-            " avg_price, deal_amount, status, lever, fee, symbol, exchange, contract_type,"
-            " place_timestamp, place_datetime, deal_timestamp, deal_datetime, due_timestamp,"
-            " due_datetime, swap_timestamp, swap_datetime, cancel_timestamp, cancel_datetime)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(self._table_name),
+    def __update_instance(self):
+        conn = Conn(self._db_name)
+        orders = conn.query(
+            "SELECT * FROM {} WHERE instance_id = ? ORDER BY sequence".format(self._table_name),
+            (self["instance_id"],),
+        )
+
+        open_times, open_amount, open_fee = 0, 0, 0.0
+        open_type, open_place_type = ORDER_TYPE_OPEN_LONG, ""
+
+        liquidate_times, liquidate_amount, liquidate_fee = 0, 0, 0.0
+        liquidate_type, liquidate_place_type = ORDER_TYPE_LIQUIDATE_LONG, ""
+
+        swap_times, swap_fee, swap_pnl_asset = 0, 0.0, 0
+        swap_contract = {
+            "open_amount": 0,
+            "open_sum": 0,
+            "open_avg_price": 0,
+            "liquidate_sum": 0,
+            "liquidate_amount": 0,
+            "liquidate_avg_price": 0,
+        }
+
+        for order in orders:
+            if order["type"] in (
+                    ORDER_TYPE_OPEN_LONG,
+                    ORDER_TYPE_OPEN_SHORT,
+            ) and order["place_type"] not in (
+                    ORDER_PLACE_TYPE_L_SWAP,
+                    ORDER_PLACE_TYPE_O_SWAP,
+            ):
+                open_times += 1
+                open_amount += order["deal_amount"]
+                open_fee += order["fee"]
+                open_type = order["type"]
+                open_place_type = order["place_type"]
+
+            if order["type"] in (
+                    ORDER_TYPE_LIQUIDATE_LONG,
+                    ORDER_TYPE_LIQUIDATE_SHORT,
+            ) and order["place_type"] not in (
+                    ORDER_PLACE_TYPE_L_SWAP,
+                    ORDER_PLACE_TYPE_O_SWAP,
+            ):
+                liquidate_times += 1
+                liquidate_amount += order["deal_amount"]
+                liquidate_fee += order["fee"]
+                liquidate_type = order["type"]
+                liquidate_place_type = order["place_type"]
+
+            if order["place_type"] in (
+                    ORDER_PLACE_TYPE_O_SWAP,
+                    ORDER_PLACE_TYPE_L_SWAP,
+            ):
+                swap_fee += order["fee"]
+                if order["type"] == ORDER_TYPE_OPEN_LONG:
+                    swap_times += 1
+
+                    swap_contract["open_amount"] += order["deal_amount"]
+                    swap_contract["open_sum"] -= order["deal_amount"] * order["avg_price"]
+                    swap_contract["open_avg_price"] = int(-swap_contract["open_sum"] / swap_contract["open_amount"])
+                elif order["type"] == ORDER_TYPE_OPEN_SHORT:
+                    swap_times += 1
+
+                    swap_contract["open_amount"] += order["deal_amount"]
+                    swap_contract["open_sum"] += order["deal_amount"] * order["avg_price"]
+                    swap_contract["open_avg_price"] = int(swap_contract["open_sum"] / swap_contract["open_amount"])
+                elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
+                    swap_contract["liquidate_amount"] += order["deal_amount"]
+                    swap_contract["liquidate_sum"] += order["deal_amount"] * order["avg_price"]
+                    swap_contract["liquidate_avg_price"] = int(
+                        swap_contract["liquidate_sum"] / swap_contract["liquidate_amount"]
+                    )
+                elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
+                    swap_contract["liquidate_amount"] += order["deal_amount"]
+                    swap_contract["liquidate_sum"] -= order["deal_amount"] * order["avg_price"]
+                    swap_contract["liquidate_avg_price"] = int(
+                        -swap_contract["liquidate_sum"] / swap_contract["liquidate_amount"]
+                    )
+                else:
+                    raise RuntimeError("can deal with the order type. ")
+        if open_amount != liquidate_amount:
+            return
+        # 不需要计算swap的情况。
+        if swap_contract["open_amount"] != swap_contract["liquidate_amount"]:
+            return
+        swap_pnl_asset = swap_contract["open_sum"] + swap_contract["liquidate_sum"]
+        if swap_pnl_asset > 0:
+            swap_pnl_asset *= self["unit_amount"]
+            swap_pnl_asset /= swap_contract["liquidate_avg_price"]
+
+        conn.execute(
+            "UPDATE future_instance_backtest SET open_times = ?, open_fee = ?, open_type = ?, open_place_type = ?,"
+            " liquidate_times = ?, liquidate_fee = ?, liquidate_type = ?, liquidate_place_type = ?,"
+            " swap_times = ?, swap_fee = ?, swap_pnl_asset = ? WHERE id = ?",
             (
-                self["instance_id"], self["sequence"], self["place_type"], self["type"], self["price"], self["amount"],
-                self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"], self["symbol"],
-                self["exchange"], self["contract_type"], self["place_timestamp"], self["place_datetime"],
-                self["deal_timestamp"], self["deal_datetime"], self["due_timestamp"], self["due_datetime"],
-                self["swap_timestamp"], self["swap_datetime"], self["cancel_timestamp"], self["cancel_datetime"]
+                open_times, open_fee, open_type, open_place_type,
+                liquidate_times, liquidate_fee, liquidate_type, liquidate_place_type,
+                swap_times, swap_fee, swap_pnl_asset, self["instance_id"],
             ),
         )
 

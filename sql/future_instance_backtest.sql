@@ -25,7 +25,6 @@ CREATE TABLE `future_instance_backtest` (
   `open_type` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1: open_long, 2: open_short',
   `open_place_type` varchar(10) NOT NULL DEFAULT 't_taker' COMMENT 't_taker t_maker b_taker b_maker o_swap l_swap market',
   `open_times` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1~9',
-  `open_swap` tinyint(1) NOT NULL DEFAULT '0',
   `open_fee` decimal(20,8) COMMENT '开仓费用',
   `open_start_timestamp` bigint(13) COMMENT '开仓开始时间戳',
   `open_start_datetime` datetime COMMENT '开仓开始时间',
@@ -34,10 +33,13 @@ CREATE TABLE `future_instance_backtest` (
   `open_expired_timestamp` bigint(13) COMMENT '开仓超时时间戳',
   `open_expired_datetime` datetime COMMENT '开仓超时时间',
 
+  `swap_times` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1~9',
+  `swap_fee` decimal(20,8) COMMENT '换仓手续费',
+  `swap_pnl_asset` decimal(20,8) COMMENT '换仓损益资产',
+
   `liquidate_type` tinyint(1) NOT NULL DEFAULT '3' COMMENT '3: liquidate_long, 4: liquidate_short',
   `liquidate_place_type` varchar(10) NOT NULL DEFAULT 'b_taker' COMMENT 't_taker t_maker b_taker b_maker o_swap l_swap market',
   `liquidate_times` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1~9',
-  `liquidate_swap` tinyint(1) NOT NULL DEFAULT '0',
   `liquidate_fee` decimal(20,8) COMMENT '- anchored_asset*position*rate',
   `liquidate_start_timestamp` bigint(13) COMMENT '平仓开始时间戳',
   `liquidate_start_datetime` datetime COMMENT '平仓开始时间',

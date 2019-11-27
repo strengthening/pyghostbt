@@ -143,13 +143,19 @@ class Asset(dict):
             ),
         )
 
+    # 账单小计
+    def __add_asset_item(self, timestamp, datetime):
+
+        conn = Conn(self._db_name)
         position = conn.query_one(
-            """SELECT SUM(position) AS position FROM {}
+            """
+            SELECT SUM(position) AS position FROM {}
             WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ?
             """.format(self._account_flow_table_name),
-            (self._symbol, self._exchange, self._backtest_id, kwargs.get("timestamp"))
+            (
+                self._symbol, self._exchange, self._backtest_id, timestamp,
+            )
         )["position"]
-
         amount = conn.query_one(
             """
             SELECT SUM(amount)/100000000 AS amount FROM {} 
@@ -157,8 +163,12 @@ class Asset(dict):
             AND subject NOT IN (?, ?)
             """.format(self._account_flow_table_name),
             (
-                self._symbol, self._exchange, self._backtest_id, kwargs.get("timestamp"),
-                SUBJECT_FREEZE, SUBJECT_UNFREEZE,
+                self._symbol,
+                self._exchange,
+                self._backtest_id,
+                timestamp,
+                SUBJECT_FREEZE,
+                SUBJECT_UNFREEZE,
             ),
         )["amount"]
 
@@ -169,9 +179,18 @@ class Asset(dict):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.format(self._asset_table_name),
             (
-                self._symbol, self._exchange, self._backtest_id, amount, 0, 0, 0, 0, position,
-                kwargs.get("timestamp"), kwargs.get("datetime"),
-            )
+                self._symbol,
+                self._exchange,
+                self._backtest_id,
+                amount,
+                0,
+                0,
+                0,
+                0,
+                position,
+                timestamp,
+                datetime,
+            ),
         )
 
     # 回测是初始化账户，主要是注资
@@ -182,11 +201,13 @@ class Asset(dict):
             "SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND subject = ? AND timestamp = ?"
             " AND backtest_id = ? LIMIT 1".format(self._account_flow_table_name),
             (
-                self._symbol, self._exchange, SUBJECT_INJECTION,
-                m.millisecond_timestamp, self._backtest_id
-            )
+                self._symbol,
+                self._exchange,
+                SUBJECT_INJECTION,
+                m.millisecond_timestamp,
+                self._backtest_id,
+            ),
         )
-
         if one:
             return
         self.__add_account_flow_item(
@@ -195,6 +216,10 @@ class Asset(dict):
             position=0,
             timestamp=m.millisecond_timestamp,
             datetime=m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+        self.__add_asset_item(
+            m.millisecond_timestamp,
+            m.format("YYYY-MM-DD HH:mm:ss"),
         )
 
     def freeze(self, amount: float, position: float, timestamp: int) -> None:
@@ -207,6 +232,10 @@ class Asset(dict):
             position=position,
             timestamp=timestamp,
             datetime=m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+        self.__add_asset_item(
+            m.millisecond_timestamp,
+            m.format("YYYY-MM-DD HH:mm:ss"),
         )
 
     def unfreeze(self, amount: float, position: float, timestamp: int) -> None:
@@ -229,6 +258,10 @@ class Asset(dict):
             position=0,
             timestamp=timestamp,
             datetime=m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+        self.__add_asset_item(
+            m.millisecond_timestamp,
+            m.format("YYYY-MM-DD HH:mm:ss"),
         )
 
     def calculate_income(self, instance_id: int, unit_amount: int, standard: bool = True) -> float:

@@ -5,7 +5,6 @@ MODE_STRATEGY = "strategy"
 MODE_ONLINE = "online"
 MODE_OFFLINE = "offline"
 
-
 KLINE_INTERVAL_1MIN = "1min"
 KLINE_INTERVAL_15MIN = "15min"
 KLINE_INTERVAL_1HOUR = "1hour"
@@ -41,15 +40,16 @@ INDICES_TYPE_STRING = "string"
 INDICES_TYPE_INTEGER = "integer"
 INDICES_TYPE_FLOAT = "float"
 
-SUBJECT_INJECTION = "injection"  # 注资，amount为正， position 为0
-SUBJECT_DIVIDEND = "dividend"  # 分红，amount为负， position 为0
+SUBJECT_INJECTION = "injection"  # 注资，amount为正， position 为0，计算子账户资产时需要剔除。
+SUBJECT_DIVIDEND = "dividend"  # 分红，amount为负， position 为0，计算子账户资产时需要剔除，也就是说分红仅从总账户中提取。
 SUBJECT_FREEZE = "freeze"  # 冻结，amount为负， position 为正
 SUBJECT_UNFREEZE = "unfreeze"  # 解冻，amount为正， position 为负
 SUBJECT_INCOME = "income"  # 收益，amount正负皆可， position 为0
 SUBJECT_TRANSACTION_FEE = "transaction_fee"  # 交易费用，amount正负皆可， position 为0
 SUBJECT_LOAN_FEE = "loan_fee"  # 借贷费用，amount为负， position 为0
 SUBJECT_ADJUSTMENT = "adjustment"  # 与交易所服务器进行校准，amount正负皆可， position 为0
-SUBJECT_TRANSFER = "transfer"  # 内部转账，amount正负皆可， position 为0
+SUBJECT_TRANSFER_IN = "transfer_in"  # 内部转账，转入子账户，amount为正， position 为0，计算总账户资产时需要剔除。
+SUBJECT_TRANSFER_OUT = "transfer_out"  # 内部转账，转出子账户，amount为负， position 为0，计算总账户资产时需要剔除。
 
 ORDER_TYPE_OPEN_LONG = 1
 ORDER_TYPE_OPEN_SHORT = 2

@@ -1,0 +1,20 @@
+CREATE TABLE `spot_kline_btc_usd` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `open` decimal(20,8) NOT NULL DEFAULT '0.0' COMMENT 'The kline open price',
+  `high` decimal(20,8) NOT NULL DEFAULT '0.0' COMMENT 'The kline high price',
+  `low` decimal(20,8) NOT NULL DEFAULT '0.0' COMMENT 'The kline low price',
+  `close` decimal(20,8) NOT NULL DEFAULT '0.0' COMMENT 'The kline close price',
+  `vol` decimal(20, 8) NOT NULL DEFAULT '0' COMMENT 'The kline volume',
+  `symbol` varchar(30) NOT NULL DEFAULT '' COMMENT 'The symbol: btc_usd',
+  `exchange` varchar(20) NOT NULL DEFAULT '' COMMENT 'The exchange name: okex/binance',
+  `interval` varchar(10) NOT NULL DEFAULT '1min' COMMENT 'The kline interval: 1min/15min/1h/4h/1day/1week',
+  `timestamp` bigint(13) NOT NULL DEFAULT '0' COMMENT 'The kline start timestamp',
+  `date` datetime NOT NULL COMMENT 'The kline start date',
+  `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `symbol` (`symbol`,`exchange`,`interval`,`date`),
+  KEY `date` (`date`),
+  KEY `timestamp` (`timestamp`),
+  KEY `symbol_2` (`symbol`,`exchange`,`interval`,`timestamp`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

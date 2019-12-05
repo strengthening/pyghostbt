@@ -199,6 +199,23 @@ class Strategy(Runtime):
     def check_instance(instance):
         validate(instance=instance, schema=instance_param)
 
+    # 获取风险等级
+    def _check_risk_level(self, timestamp: int) -> int:
+        conn = Conn(self["db_name"])
+        query_sql = """
+        SELECT * FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ?
+         AND strategy = ? AND open_start_timestamp >= ? AND liquidate_finish_timestamp < ?
+        """.format(
+            trade_type=self["trade_type"],
+            mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+        )
+
+        instances = conn.query(
+            query_sql,
+            (self["symbol"], self["exchange"], self["strategy"], timestamp, timestamp),
+        )
+        return len(instances)
+
     def get_waiting(self, timestamp):
         # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
         conn = Conn(self["db_name"])

@@ -72,7 +72,8 @@ account_flow_input = {
                 SUBJECT_TRANSACTION_FEE,
                 SUBJECT_LOAN_FEE,
                 SUBJECT_ADJUSTMENT,
-                SUBJECT_TRANSFER,
+                SUBJECT_TRANSFER_IN,
+                SUBJECT_TRANSFER_OUT,
             ],
         },
         "amount": {

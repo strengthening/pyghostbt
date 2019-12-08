@@ -232,7 +232,7 @@ class Strategy(Runtime):
             INSTANCE_STATUS_WAITING, 0
         )
 
-        if self["trade_type"] == TRADE_TYPE_FUTURE:
+        if self["trade_type"] == TRADE_TYPE_FUTURE and self["mode"] == MODE_BACKTEST:
             query_sql = """
             SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?
              AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
@@ -246,6 +246,20 @@ class Strategy(Runtime):
                 self["symbol"], self["exchange"], self["contract_type"],
                 self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
             )
+        elif self["trade_type"] == TRADE_TYPE_FUTURE and self["mode"] in (MODE_OFFLINE, MODE_ONLINE):
+            query_sql = """
+            SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?
+             AND strategy = ? AND status = ? AND wait_start_timestamp = ?
+            """
+            insert_sql = """
+            INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, contract_type, strategy, status,
+             wait_start_timestamp) VALUES (?, ?, ?, ?, ?, ?) 
+            """
+            params = (
+                self["symbol"], self["exchange"], self["contract_type"],
+                self["strategy"], INSTANCE_STATUS_WAITING, 0,
+            )
+
         # 线上环境中应该查找对应的instance记录来确定最新的 id
         item = conn.query_one(
             query_sql.format(

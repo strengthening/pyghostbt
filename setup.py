@@ -13,5 +13,5 @@ setup(
     author="strengthening",
     author_email="ducg@foxmail.com",
     # url='http://www.you.com/projectname',
-    packages=["pyghostbt"],
+    packages=["pyghostbt", "pyghostbt.tool"],
 )

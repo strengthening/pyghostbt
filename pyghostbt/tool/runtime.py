@@ -1,6 +1,6 @@
-from pyghostbt.const import *
 from pyghostbt.tool import kline
 from pyghostbt.util import uuid
+from pyghostbt.const import *
 from jsonschema import validate
 
 runtime_input = {

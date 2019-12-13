@@ -1,0 +1,5 @@
+PyMySQL==0.8.0
+python-dotenv==0.10.1
+TA-Lib==0.4.17
+jsonschema==3.0.2
+numpy==1.17.4

@@ -1,7 +1,7 @@
 from jsonschema import validate
 from pyanalysis.mysql import Conn
-from pyghostbt.const import *
 from pyghostbt.util import standard_number
+from pyghostbt.const import *
 
 kline_input = {
     "type": "object",
@@ -113,7 +113,7 @@ class Kline(object):
             finish_timestamp: int,
             interval: str,
             standard: bool = False,
-            due_timestamp: int = 0, # 辅助参数
+            due_timestamp: int = 0,  # 辅助参数
     ):
         conn = Conn(self.db_name)
         params = (start_timestamp, finish_timestamp, self.symbol, self.exchange, interval)

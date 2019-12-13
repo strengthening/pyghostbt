@@ -1,4 +1,3 @@
-from jsonschema import validate
 from pyghostbt.strategy import Strategy
 from pyghostbt.const import *
 from pyanalysis.mysql import Conn

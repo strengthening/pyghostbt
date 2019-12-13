@@ -1,6 +1,7 @@
 from jsonschema import validate
 from pyghostbt.const import *
-from pyghostbt.util import standard_number, real_number
+from pyghostbt.util import standard_number
+from pyghostbt.util import real_number
 from pyanalysis.mysql import Conn
 from pyanalysis.moment import moment
 

@@ -216,6 +216,32 @@ class Strategy(Runtime):
         )
         return len(instances)
 
+    def _get_waiting_instance_id(self)->int:
+        conn = Conn(self["db_name"])
+        query_sql = """
+        SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ?
+        AND status = ? AND wait_start_timestamp = ?
+        """
+        params = (
+            self["symbol"], self["exchange"], self["strategy"],
+            INSTANCE_STATUS_WAITING, 0,
+        )
+
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            query_sql = """
+            SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ? 
+            AND strategy = ? AND status = ? AND wait_start_timestamp = ?
+            """
+            params = (
+                self["symbol"], self["exchange"], self["contract_type"],
+                self["strategy"], INSTANCE_STATUS_WAITING, 0,
+            )
+        item = conn.query_one(
+            query_sql.format(trade_type=self["trade_type"], mode=self["mode"]),
+            params
+        )
+        return item["id"] if item else 0
+
     def get_waiting(self, timestamp):
         # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
         conn = Conn(self["db_name"])

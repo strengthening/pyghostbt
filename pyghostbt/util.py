@@ -3,10 +3,12 @@ import random
 from datetime import datetime
 
 from pyanalysis.moment import moment
-from pyghostbt.const import *
+from pyghostbt.const import CONTRACT_TYPE_THIS_WEEK
+from pyghostbt.const import CONTRACT_TYPE_NEXT_WEEK
+from pyghostbt.const import CONTRACT_TYPE_QUARTER
 
 
-def uuid():
+def uuid() -> str:
     """
     generate uuid
     :return: the uuid len 32
@@ -19,11 +21,16 @@ def uuid():
     return m.hexdigest()
 
 
-def standard_number(input_num):
-    """
-    将行情数据放大100000000倍，并四舍五入转化成int
-    :param input_num:
-    :return:
+def standard_number(input_num: float) -> int:
+    """Get the standard num.
+
+    In this project, the standard num is *100000000, and rounding to int.
+
+    Args:
+        input_num: The number you want to standard.
+
+    Returns:
+        The standard num.
     """
     if input_num > 0:
         return int(input_num * 100000000 + 0.5)
@@ -34,7 +41,21 @@ def real_number(std_num: int) -> float:
     return std_num / 100000000
 
 
-def get_contract_type(timestamp, due_timestamp):
+def get_contract_type(timestamp: int, due_timestamp: int) -> str:
+    """Get the contract_type
+
+    Input the timestamp and due_timestamp. Return which contract_type is.
+
+    Args:
+        timestamp: The target timestamp, you want to know.
+        due_timestamp: The due timestamp of the contract.
+
+    Returns:
+        The contract_type name.
+
+    Raises:
+        RuntimeError: An error occurred timestamp gt due_timestamp.
+    """
     minus = due_timestamp - timestamp
     if minus < 0:
         raise RuntimeError("the timestamp more than due_timestamp")
@@ -46,7 +67,22 @@ def get_contract_type(timestamp, due_timestamp):
         return CONTRACT_TYPE_QUARTER
 
 
-def get_contract_timestamp(timestamp, contract_type):
+def get_contract_timestamp(timestamp: int, contract_type: str) -> (int, int, int):
+    """Get the contract key timestamp info.
+
+    The contract contain start, swap, due time, this func return the timestamps.
+
+    Args:
+        timestamp: The target timestamp, you want to know.
+        contract_type: The contract type, must be this_week/ next_week/ quarter
+
+    Returns:
+        A tuple with three int result. It is the contract start_timestamp,
+        swap_timestamp, due_timestamp.
+
+    Raises:
+        RuntimeError: An error occurred error contract_type
+    """
     m = moment.get(timestamp).to("Asia/Shanghai")
     weekday = m.weekday()
     hour = m.hour

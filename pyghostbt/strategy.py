@@ -216,7 +216,7 @@ class Strategy(Runtime):
         )
         return len(instances)
 
-    def _get_waiting_instance_id(self)->int:
+    def _get_waiting_instance_id(self) -> int:
         conn = Conn(self["db_name"])
         query_sql = """
         SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ?
@@ -301,10 +301,10 @@ class Strategy(Runtime):
             last_insert_id = conn.insert(insert_sql.format(**self), params)
             self.__setitem__("id", last_insert_id)
 
-    def get_opening(self, timestamp):
+    def get_opening(self, timestamp: int) -> list:
         pass
 
-    def get_liquidating(self, timestamp):
+    def get_liquidating(self, timestamp: int) -> list:
         pass
 
     def get_instances(self, timestamp):

@@ -102,7 +102,7 @@ class Asset(dict):
 
         self._symbol = kwargs.get("symbol")
         self._exchange = kwargs.get("exchange")
-        self._contract_type = kwargs.get("contract_type")
+        # self._contract_type = kwargs.get("contract_type") remove the contract_type cause, it is not necessary.
         self._trade_type = kwargs.get("trade_type")
         self._mode = kwargs.get("mode")
         self._backtest_id = kwargs.get("backtest_id")
@@ -135,11 +135,11 @@ class Asset(dict):
         conn = Conn(self._db_name)
         conn.insert(
             """
-            INSERT INTO {} (symbol, exchange, contract_type, backtest_id, subject, amount,
+            INSERT INTO {} (symbol, exchange, backtest_id, subject, amount,
             position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.format(self._account_flow_table_name),
             (
-                self._symbol, self._exchange, self._contract_type, self._backtest_id,
+                self._symbol, self._exchange, self._backtest_id,
                 kwargs.get("subject"), standard_number(kwargs.get("amount")), kwargs.get("position"),
                 kwargs.get("timestamp"), kwargs.get("datetime"),
             ),

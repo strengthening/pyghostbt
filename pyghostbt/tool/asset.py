@@ -136,7 +136,7 @@ class Asset(dict):
         conn.insert(
             """
             INSERT INTO {} (symbol, exchange, backtest_id, subject, amount,
-            position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """.format(self._account_flow_table_name),
             (
                 self._symbol, self._exchange, self._backtest_id,
@@ -174,26 +174,46 @@ class Asset(dict):
             ),
         )["amount"]
 
-        conn.insert(
-            """
-            INSERT INTO {} (symbol, exchange, backtest_id, total_asset, sub_asset, sub_freeze_asset, 
-            total_position, sub_position, sub_freeze_position, timestamp, datetime) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.format(self._asset_table_name),
-            (
-                self._symbol,
-                self._exchange,
-                self._backtest_id,
-                amount,
-                0,
-                0,
-                0,
-                0,
-                position,
-                timestamp,
-                datetime,
+        one = conn.query_one(
+            """SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND timestamp = ? AND backtest_id = ?""".format(
+                self._asset_table_name,
             ),
+            (self._symbol, self._exchange, timestamp, self._backtest_id)
         )
+
+        if one:
+            conn.execute(
+                """
+                UPDATE {} SET total_asset = ?, sub_asset = ?, sub_freeze_asset = ?, total_position = ?, sub_position = ?,
+                sub_freeze_position = ?, datetime = ? 
+                WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp = ? 
+                """.format(self._asset_table_name),
+                (
+                    amount, 0, 0, 0, 0, position, datetime, self._symbol, self._exchange, self._backtest_id, timestamp,
+                ),
+            )
+        else:
+            conn.insert(
+                """
+                INSERT INTO {} (symbol, exchange, backtest_id, total_asset, sub_asset, sub_freeze_asset, 
+                total_position, sub_position, sub_freeze_position, timestamp, datetime) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.format(self._asset_table_name),
+                (
+                    self._symbol, self._exchange, self._backtest_id, amount, 0, 0, 0, 0, position, timestamp, datetime,
+                ),
+            )
+
+        one = conn.query_one(
+            """SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND timestamp > ? AND backtest_id = ?
+             ORDER BY timestamp LIMIT 1""".format(
+                self._asset_table_name,
+            ),
+            (self._symbol, self._exchange, timestamp, self._backtest_id)
+        )
+        conn.close()  # 手动关闭
+        if one:
+            self.__add_asset_item(one["timestamp"], one["datetime"])
 
     # 回测是初始化账户，主要是注资
     def init_account(self, amount: float) -> None:

@@ -1,4 +1,9 @@
+from typing import List
+from typing import Dict
 from pyghostbt.strategy import Strategy
+from pyghostbt.tool.order import FutureOrder
+from pyghostbt.tool.param import Param
+from pyghostbt.tool.indices import Indices
 from pyghostbt.const import *
 from pyanalysis.mysql import Conn
 
@@ -144,6 +149,7 @@ class Backtest(Strategy):
                 if the_candle:
                     l_price = the_candle["close"]
                     l_swap_instance = instance
+                    l_swap_instance["order"]["price"] = l_price  # add the candle close price to order
                     l_swap_instance["order"]["place_timestamp"] = the_candle["timestamp"]
                     l_swap_instance["order"]["place_datetime"] = the_candle["date"]
                     l_swap_instance["order"]["deal_timestamp"] = the_candle["timestamp"]
@@ -152,6 +158,7 @@ class Backtest(Strategy):
                 if the_candle:
                     o_price = the_candle["close"]
                     o_swap_instance = instance
+                    o_swap_instance["order"]["price"] = o_price  # add the candle close price to order
                     o_swap_instance["order"]["place_timestamp"] = the_candle["timestamp"]
                     o_swap_instance["order"]["place_datetime"] = the_candle["date"]
                     o_swap_instance["order"]["deal_timestamp"] = the_candle["timestamp"]
@@ -161,6 +168,67 @@ class Backtest(Strategy):
                     return [instance]
         if l_price and o_price:
             if -0.03 < o_price / l_price - 1 < 0.03:
+                return [l_swap_instance, o_swap_instance]
+        return []
+
+    # 多个timestamp的多个contract的蜡烛数据，跟instance比较。
+    @staticmethod
+    def __compare_candles_kv_with_instances(
+            candles_kv: Dict[int, Dict[int, dict]],
+            instances: List[dict],
+    ) -> List[dict]:
+        contracts_kv: Dict[int, List[dict]] = {}  # record due_timestamp with the candles
+        flag = 0
+        candle_timestamps = sorted(candles_kv.keys(), reverse=True)
+        for timestamp in candle_timestamps:
+            for instance in instances:
+                # 说明instance中有些contract的candle数据没有，放弃此
+                if instance["order"]["due_timestamp"] not in candles_kv[timestamp]:
+                    break
+            else:
+                for due_timestamp in candles_kv[timestamp]:
+                    if due_timestamp not in contracts_kv:
+                        contracts_kv[due_timestamp] = []
+                    contracts_kv[due_timestamp].append(candles_kv[timestamp][due_timestamp])
+                flag += 1
+
+        l_avg_price, o_avg_price = 0.0, 0.0
+        l_price, o_price = 0.0, 0.0
+        l_swap_instance, o_swap_instance = None, None
+        for instance in instances:
+            the_candles = contracts_kv.get(instance["order"]["due_timestamp"])
+            if instance["order"]["place_type"] == ORDER_PLACE_TYPE_L_SWAP:
+                if flag < 15:  # 说明有超过15个蜡烛数据
+                    continue
+                l_price = the_candles[0]["close"]
+                l_avg_price = sum([candle["close"] for candle in the_candles[:15]]) / 15
+                l_swap_instance = instance
+                l_swap_instance["order"]["price"] = l_price  # add the candle close price to order
+                l_swap_instance["order"]["place_timestamp"] = the_candles[0]["timestamp"]
+                l_swap_instance["order"]["place_datetime"] = the_candles[0]["date"]
+                l_swap_instance["order"]["deal_timestamp"] = the_candles[0]["timestamp"]
+                l_swap_instance["order"]["deal_datetime"] = the_candles[0]["date"]
+            elif instance["order"]["place_type"] == ORDER_PLACE_TYPE_O_SWAP:
+                if flag < 15:  # 说明有超过15个蜡烛数据
+                    continue
+                o_price = the_candles[0]["close"]
+                o_avg_price = sum([candle["close"] for candle in the_candles[:15]]) / 15
+                o_swap_instance = instance
+                o_swap_instance["order"]["price"] = o_price
+                o_swap_instance["order"]["place_timestamp"] = the_candles[0]["timestamp"]
+                o_swap_instance["order"]["place_datetime"] = the_candles[0]["date"]
+                o_swap_instance["order"]["deal_timestamp"] = the_candles[0]["timestamp"]
+                o_swap_instance["order"]["deal_datetime"] = the_candles[0]["date"]
+            else:
+                # 除了swap的订单进行匹配。
+                the_candle = candles_kv[candle_timestamps[0]].get(instance["order"]["due_timestamp"])
+                if the_candle and Backtest.__compare_candle_with_instance(
+                        the_candle,
+                        instance,
+                ):
+                    return [instance]
+        if l_price and o_price and l_avg_price and o_avg_price:
+            if (-0.03 < o_price / l_price - 1 < 0.03) and (-0.03 < o_avg_price / l_avg_price - 1 < 0.03):
                 return [l_swap_instance, o_swap_instance]
         return []
 
@@ -199,19 +267,24 @@ class Backtest(Strategy):
             standard=standard
         )
 
-        frag_candles = []
-        tmp_instances = []  # 触发后的instances
+        frag_candles_kv: Dict[int, Dict[int, dict]] = {}  # the key is timestamp, due_timestamp, value is candle
+        tmp_instances: List[dict] = []  # 触发后的instances
+        last_timestamp = 0
+
         for candle in candles:
-            if len(frag_candles) == 0:
-                frag_candles.append(candle)
-                continue
-            if frag_candles[0]["timestamp"] == candle["timestamp"]:
-                frag_candles.append(candle)
-                continue
-            tmp_instances = self.__compare_candles_with_instances(frag_candles, instances)
-            if tmp_instances:
-                return tmp_instances
-            frag_candles = [candle]
+            if len(frag_candles_kv) >= 15 and candle["timestamp"] != last_timestamp:
+                tmp_instances = self.__compare_candles_kv_with_instances(frag_candles_kv, instances)
+                if tmp_instances:
+                    break
+
+            if candle["timestamp"] != last_timestamp:
+                frag_candles_kv[candle["timestamp"]] = {}
+
+            last_timestamp = candle["timestamp"]
+            frag_candles_kv[candle["timestamp"]][candle["due_timestamp"]] = candle
+        else:
+            if len(frag_candles_kv) >= 15:
+                tmp_instances = self.__compare_candles_kv_with_instances(frag_candles_kv, instances)
         return tmp_instances
 
     def _back_test_by_day_kline(
@@ -270,11 +343,16 @@ class Backtest(Strategy):
                 ),
             )
 
-            self["order"].deal()
+            order: FutureOrder
+            param: Param
+            indices: Indices
+            order, param, indices = self["order"], self["param"], self["indices"]
+
             import json
-            self["order"].save(check=True, raw_order_data=json.dumps(self))
-            self["param"].save(self["id"])
-            self["indices"].save(self["id"])
+            order.deal()
+            order.save(check=True, raw_order_data=json.dumps(self))
+            param.save(self["id"])
+            indices.save(self["id"])
         else:
             raise RuntimeError("I think can not insert in this place. ")
 

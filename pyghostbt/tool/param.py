@@ -15,7 +15,7 @@ PARAM_NAME_MAX_ABS_PROFIT = "max_abs_profit"
 
 param_input = {
     "type": "object",
-    "required": [PARAM_NAME_POSITION, PARAM_NAME_MAX_ABS_LOSS],
+    # "required": [PARAM_NAME_POSITION, PARAM_NAME_MAX_ABS_LOSS],
     "properties": {
         PARAM_NAME_TURTLE_DAYS: {"type": "integer", "minimum": 0, "maximum": 30},
         PARAM_NAME_POSITION: {"type": "number", "multipleOf": 0.1, "minimum": 0.1, "maximum": 5},
@@ -66,6 +66,11 @@ class Param(dict):
             trade_type=self._trade_type,
             mode=self._mode,
         )
+
+    def add_item(self, param):
+        validate(instance=param, schema=param_input)
+        for param_name in param:
+            self[param_name] = param[param_name]
 
     def load(self, instance_id):
         conn = Conn(self._db_name)

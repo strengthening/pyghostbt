@@ -81,12 +81,18 @@ class Indices(dict):
 
     @staticmethod
     def ATR(candles, time_period=14):
-        return talib.ATR(
+        # the return type is numpy.float64, so change it to pythons float
+        return [float(atr) for atr in talib.ATR(
             np.array([float(k["high"]) for k in candles]),
             np.array([float(k["low"]) for k in candles]),
             np.array([float(k["close"]) for k in candles]),
             time_period,
-        )
+        )]
+
+    def add_item(self, indices):
+        validate(instance=indices, schema=indices_input)
+        for indices_name in indices:
+            self[indices_name] = indices[indices_name]
 
     def load(self, instance_id):
         conn = Conn(self._db_name)

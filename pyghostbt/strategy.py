@@ -202,17 +202,27 @@ class Strategy(Runtime):
     # 获取风险等级
     def _check_risk_level(self, timestamp: int) -> int:
         conn = Conn(self["db_name"])
-        query_sql = """
-        SELECT * FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ?
-         AND strategy = ? AND open_start_timestamp >= ? AND liquidate_finish_timestamp < ?
-        """.format(
+        table_name = "{trade_type}_instance_{mode}".format(
             trade_type=self["trade_type"],
             mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
         )
 
+        query_sql = """
+        SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
+        AND open_start_timestamp <= ? AND liquidate_finish_timestamp >= ?
+        """
+        params = (self["symbol"], self["exchange"], self["strategy"], timestamp, timestamp)
+
+        if self["mode"] == MODE_BACKTEST:
+            query_sql = """
+            SELECT * FROM {} WHERE backtest_id = ? AND symbol = ? AND exchange = ?
+             AND strategy = ? AND open_start_timestamp <= ? AND liquidate_finish_timestamp >= ?
+            """
+            params = (self["backtest_id"], self["symbol"], self["exchange"], self["strategy"], timestamp, timestamp)
+
         instances = conn.query(
-            query_sql,
-            (self["symbol"], self["exchange"], self["strategy"], timestamp, timestamp),
+            query_sql.format(table_name),
+            params,
         )
         return len(instances)
 

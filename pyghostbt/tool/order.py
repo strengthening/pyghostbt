@@ -1,6 +1,8 @@
 from jsonschema import validate
 from pyanalysis.mysql import Conn
+from pyanalysis.moment import moment
 from pyghostbt.const import *
+from pyghostbt.util import real_number
 
 order_input = {
     "type": "object",
@@ -175,6 +177,8 @@ class FutureOrder(Order):
         # 回测时假设已经成交。
         self["deal_amount"] = self["amount"]
         self["status"] = 1
+        if self["place_type"] in (ORDER_PLACE_TYPE_L_SWAP, ORDER_PLACE_TYPE_O_SWAP):
+            slippage = 0.0
         if self["type"] == ORDER_TYPE_OPEN_LONG or self["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
             self["avg_price"] = int(self["price"] * (1 + slippage))
             self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000 / self["avg_price"]
@@ -204,7 +208,7 @@ class FutureOrder(Order):
                 " place_timestamp = ?, place_datetime = ?, deal_timestamp = ?, deal_datetime = ?,"
                 " due_timestamp = ?, due_datetime = ?, swap_timestamp = ?, swap_datetime = ?,"
                 " cancel_timestamp = ?, cancel_datetime = ?, raw_order_data = ?, raw_market_data = ?"
-                " WHERE instance_id = ? AND sequence = ?",
+                " WHERE instance_id = ? AND sequence = ?".format(self._table_name),
                 (
                     self["place_type"], self["type"], self["price"], self["amount"],
                     self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"],
@@ -245,9 +249,13 @@ class FutureOrder(Order):
         )
 
         open_times, open_amount, open_fee = 0, 0, 0.0
+        open_start_timestamp, open_finish_timestamp = 0, 0
+        open_start_datetime, open_finish_datetime = "", ""
         open_type, open_place_type = ORDER_TYPE_OPEN_LONG, ""
 
         liquidate_times, liquidate_amount, liquidate_fee = 0, 0, 0.0
+        liquidate_start_timestamp, liquidate_finish_timestamp = 0, 0
+        liquidate_start_datetime, liquidate_finish_datetime = "", ""
         liquidate_type, liquidate_place_type = ORDER_TYPE_LIQUIDATE_LONG, ""
 
         swap_times, swap_fee, swap_pnl_asset = 0, 0.0, 0
@@ -261,6 +269,9 @@ class FutureOrder(Order):
         }
 
         for order in orders:
+            place_timestamp = order["place_timestamp"]
+            place_datetime = moment.get(order["place_timestamp"]).to("Asia/Shanghai").format("YYYY-MM-DD HH:mm:ss")
+
             if order["type"] in (
                     ORDER_TYPE_OPEN_LONG,
                     ORDER_TYPE_OPEN_SHORT,
@@ -274,6 +285,12 @@ class FutureOrder(Order):
                 open_type = order["type"]
                 open_place_type = order["place_type"]
 
+                if open_start_timestamp == 0:
+                    open_start_timestamp = place_timestamp
+                    open_start_datetime = place_datetime
+                open_finish_timestamp = place_timestamp
+                open_finish_datetime = place_datetime
+
             if order["type"] in (
                     ORDER_TYPE_LIQUIDATE_LONG,
                     ORDER_TYPE_LIQUIDATE_SHORT,
@@ -286,6 +303,12 @@ class FutureOrder(Order):
                 liquidate_fee += order["fee"]
                 liquidate_type = order["type"]
                 liquidate_place_type = order["place_type"]
+
+                if liquidate_start_timestamp == 0:
+                    liquidate_start_timestamp = place_timestamp
+                    liquidate_start_datetime = place_datetime
+                liquidate_finish_timestamp = place_timestamp
+                liquidate_finish_datetime = place_datetime
 
             if order["place_type"] in (
                     ORDER_PLACE_TYPE_O_SWAP,
@@ -318,23 +341,31 @@ class FutureOrder(Order):
                     )
                 else:
                     raise RuntimeError("can deal with the order type. ")
+
         if open_amount != liquidate_amount:
             return
         # 不需要计算swap的情况。
         if swap_contract["open_amount"] != swap_contract["liquidate_amount"]:
             return
-        swap_pnl_asset = swap_contract["open_sum"] + swap_contract["liquidate_sum"]
-        if swap_pnl_asset > 0:
-            swap_pnl_asset *= self["unit_amount"]
-            swap_pnl_asset /= swap_contract["liquidate_avg_price"]
+        if swap_contract["open_amount"]:
+            swap_pnl_asset = (swap_contract["open_sum"] + swap_contract["liquidate_sum"]) * self["unit_amount"]
+            swap_pnl_asset = real_number(swap_pnl_asset)
+            swap_pnl_asset /= real_number(swap_contract["open_avg_price"])
+            swap_pnl_asset /= real_number(swap_contract["liquidate_avg_price"])
 
         conn.execute(
             "UPDATE future_instance_backtest SET open_times = ?, open_fee = ?, open_type = ?, open_place_type = ?,"
+            " open_start_timestamp = ?, open_start_datetime = ?, open_finish_timestamp = ?, open_finish_datetime = ?, "
             " liquidate_times = ?, liquidate_fee = ?, liquidate_type = ?, liquidate_place_type = ?,"
+            " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
+            " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
             " swap_times = ?, swap_fee = ?, swap_pnl_asset = ? WHERE id = ?",
             (
                 open_times, open_fee, open_type, open_place_type,
+                open_start_timestamp, open_start_datetime, open_finish_timestamp, open_finish_datetime,
                 liquidate_times, liquidate_fee, liquidate_type, liquidate_place_type,
+                liquidate_start_timestamp, liquidate_start_datetime,
+                liquidate_finish_timestamp, liquidate_finish_datetime,
                 swap_times, swap_fee, swap_pnl_asset, self["instance_id"],
             ),
         )

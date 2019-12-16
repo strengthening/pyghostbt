@@ -11,6 +11,7 @@ CREATE TABLE `future_instance_strategy` (
 
 -- some columns about the asset
   `total_asset` decimal(20,8) COMMENT 'the total account asset for future',
+  `total_pnl_asset` decimal(20,8) COMMENT 'the total pnl asset at the end',
   `sub_freeze_asset` decimal(20,8) COMMENT 'the sub account freeze asset for this instance',
 
   `param_position` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',

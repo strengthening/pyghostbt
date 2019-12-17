@@ -1,8 +1,11 @@
 from pyanalysis.mysql import Conn
+from pyanalysis.moment import moment
 from pyghostbt.tool.runtime import Runtime
 from pyghostbt.tool.asset import Asset
 from pyghostbt.tool.indices import Indices
 from pyghostbt.tool.param import Param
+from pyghostbt.tool.order import FutureOrder
+from pyghostbt.util import get_contract_type
 from pyghostbt.const import *
 from jsonschema import validate
 
@@ -403,3 +406,86 @@ class Strategy(Runtime):
         indices = Indices({}, trade_type=self["trade_type"], db_name=self["db_name"], mode=self["mode"])
         indices.load(instance_id)
         self["indices"] = indices
+
+    def _analysis_orders(self, due_ts: int) -> tuple:
+        conn = Conn(self["db_name"])
+        orders = conn.query(
+            "SELECT * FROM {trade_type}_order_{mode}"
+            " WHERE instance_id = ? ORDER BY sequence".format(
+                trade_type=self["trade_type"],
+                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY
+            ),
+            (self["id"],),
+        )
+
+        if len(orders) == 0:
+            return ()
+
+        opened_times = 0
+        start_sequence = orders[-1]["sequence"] + 1
+        opening_amounts, opening_sums = {due_ts: 0}, {due_ts: 0}
+        for order in orders:
+            order_due_ts = order["due_timestamp"]
+            if order_due_ts not in opening_amounts:
+                opening_amounts[order_due_ts] = 0
+                opening_sums[order_due_ts] = 0
+
+            if order["type"] in (ORDER_TYPE_OPEN_LONG, ORDER_TYPE_OPEN_SHORT):
+                opening_amounts[order_due_ts] += order["deal_amount"]
+                opening_sums[order_due_ts] += order["deal_amount"] * order["avg_price"]
+                if order["place_type"] == ORDER_PLACE_TYPE_T_TAKER:
+                    opened_times += 1
+            elif order["type"] in (ORDER_TYPE_LIQUIDATE_LONG, ORDER_TYPE_LIQUIDATE_SHORT):
+                opening_amounts[order_due_ts] -= order["deal_amount"]
+                if opening_amounts[order_due_ts] == 0:
+                    opening_sums[order_due_ts] = 0
+                else:
+                    opening_sums[order_due_ts] -= order["deal_amount"] * order["avg_price"]
+            else:
+                raise RuntimeError("Not found the order type")
+
+        return (
+            start_sequence,
+            opened_times,
+            orders[0]["price"],
+            orders[0]["amount"],
+            opening_amounts,
+            opening_sums,
+        )
+
+    def _cp_instance_and_gen_order(
+            self,
+            sequence: int,  # 所属顺序
+            timestamp: int,  # 策略产生的时间戳
+            due_timestamp: int,  # 对用contract的到期时间
+            price: int,  # 标准化价格
+            amount: int,  # 开仓/平仓数量
+            order_type: int,  # 交易类型
+            place_type: str,  # 下单手法
+    ):
+        due_datetime = moment.get(due_timestamp).to(
+            self["timezone"] or "Asia/Shanghai",
+        ).format("YYYY-MM-DD HH:mm:ss")
+
+        instance = self.copy()
+        instance["order"] = FutureOrder(
+            {
+                "place_type": place_type,
+                "type": order_type,
+                "symbol": self["symbol"],
+                "exchange": self["exchange"],
+                "contract_type": get_contract_type(timestamp, due_timestamp),
+                "instance_id": self["id"],
+                "sequence": sequence,
+                "price": price,
+                "amount": amount,
+                "lever": self["lever"],
+                "due_timestamp": due_timestamp,
+                "due_datetime": due_datetime,
+                "unit_amount": self["unit_amount"],
+            },
+            trade_type=self["trade_type"],
+            db_name=self["db_name"],
+            mode=self["mode"],
+        )
+        return instance

@@ -230,7 +230,7 @@ class Strategy(Runtime):
         conn = Conn(self["db_name"])
         query_sql = """
         SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ?
-        AND status = ? AND wait_start_timestamp = ?
+        AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
         """
         params = (
             self["symbol"], self["exchange"], self["strategy"],
@@ -240,7 +240,7 @@ class Strategy(Runtime):
         if self["trade_type"] == TRADE_TYPE_FUTURE:
             query_sql = """
             SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ? 
-            AND strategy = ? AND status = ? AND wait_start_timestamp = ?
+            AND strategy = ? AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
             """
             params = (
                 self["symbol"], self["exchange"], self["contract_type"],

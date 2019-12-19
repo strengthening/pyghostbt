@@ -433,7 +433,7 @@ class Strategy(Runtime):
             if order["type"] in (ORDER_TYPE_OPEN_LONG, ORDER_TYPE_OPEN_SHORT):
                 opening_amounts[order_due_ts] += order["deal_amount"]
                 opening_sums[order_due_ts] += order["deal_amount"] * order["avg_price"]
-                if order["place_type"] == ORDER_PLACE_TYPE_T_TAKER:
+                if order["place_type"] != ORDER_PLACE_TYPE_O_SWAP:
                     opened_times += 1
             elif order["type"] in (ORDER_TYPE_LIQUIDATE_LONG, ORDER_TYPE_LIQUIDATE_SHORT):
                 opening_amounts[order_due_ts] -= order["deal_amount"]

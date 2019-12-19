@@ -25,7 +25,7 @@ def uuid() -> str:
 
 
 def standard_number(input_num: float) -> int:
-    """Get the standard num.
+    """Get the standard number value.
 
     In this project, the standard num is *100000000, and rounding to int.
 
@@ -41,6 +41,14 @@ def standard_number(input_num: float) -> int:
 
 
 def real_number(std_num: float) -> float:
+    """Get the real value of the standard number.
+
+    Args:
+        std_num: The number you want to reduction.
+
+    Returns:
+        The real value of the number.
+    """
     return std_num / 100000000
 
 

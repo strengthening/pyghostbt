@@ -1,18 +1,21 @@
+import json
+
 from typing import List
 from typing import Dict
 from pyghostbt.strategy import Strategy
 from pyghostbt.tool.order import FutureOrder
 from pyghostbt.tool.param import Param
 from pyghostbt.tool.indices import Indices
+from pyghostbt.tool.asset import Asset
 from pyghostbt.const import *
 from pyanalysis.mysql import Conn
 
 instance_param = {
     "type": "object",
     "required": [
-        "id", "symbol", "exchange", "strategy", "status", "interval", "wait_start_timestamp", "wait_start_datetime",
-        "wait_finish_timestamp", "wait_finish_datetime", "total_asset", "sub_freeze_asset", "param_position",
-        "param_max_abs_loss",
+        "id", "symbol", "exchange", "strategy", "status", "interval",
+        "wait_start_timestamp", "wait_start_datetime", "wait_finish_timestamp", "wait_finish_datetime",
+        "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss",
     ],
     "properties": {
         "id": {
@@ -106,12 +109,11 @@ class Backtest(Strategy):
         # self._slippage = 0.01  # 滑点百分比
         # self._fee = -0.0005  # 手续费比例
 
-    """
-    单个蜡烛和交易逻辑比较
-    """
-
     @staticmethod
     def __compare_candle_with_instance(candle: dict, instance: dict) -> dict:
+        """
+        单个蜡烛和数据交易逻辑比较
+        """
         order = instance["order"]
         if order["place_type"] == ORDER_PLACE_TYPE_T_TAKER:
             if candle["high"] > order["price"]:
@@ -135,9 +137,11 @@ class Backtest(Strategy):
             raise RuntimeError("do not support the other place_type")
         return {}
 
-    # TODO 同一个timestamp中不同的due_timestamp kline
     @staticmethod
     def __compare_candles_with_instances(candles: list, instances: list) -> list:
+        """
+        同一个timestamp不同的contract的蜡烛数据和交易逻辑进行比较。
+        """
         candles_kv = {}
         for candle in candles:
             candles_kv[candle["due_timestamp"]] = candle
@@ -236,7 +240,7 @@ class Backtest(Strategy):
             self,
             start_timestamp: int,
             finish_timestamp: int,
-            instances: list = None,
+            instances: List[Dict] = None,
             standard: bool = True,
     ) -> dict:
         candles = self._k.range_query(
@@ -259,7 +263,7 @@ class Backtest(Strategy):
             finish_timestamp: int,
             instances: list = None,
             standard: bool = True,
-    ) -> list:
+    ) -> List[dict]:
         candles = self._k.range_query_all_contract(
             start_timestamp,
             finish_timestamp,
@@ -343,18 +347,72 @@ class Backtest(Strategy):
                 ),
             )
 
-            order: FutureOrder
-            param: Param
-            indices: Indices
-            order, param, indices = self["order"], self["param"], self["indices"]
-
-            import json
+            order: FutureOrder = self["order"]
             order.deal()
-            order.save(check=True, raw_order_data=json.dumps(self))
+            order.save(
+                check=True,
+                raw_order_data=json.dumps(self),
+            )
+
+            param: Param = self["param"]
             param.save(self["id"])
+
+            indices: Indices = self["indices"]
             indices.save(self["id"])
         else:
             raise RuntimeError("I think can not insert in this place. ")
+
+    def _opening_expired(self, due_ts: int) -> int:
+        """opening阶段超时过后，转到liquidating 或者finished阶段。
+        Args:
+            due_ts: The current contract due timestamp.
+
+        Returns:
+            The next stage starting timestamp.
+        """
+        (_, _, _, _, opening_amounts, _) = self._analysis_orders(due_ts)
+        instance_status = INSTANCE_STATUS_LIQUIDATING
+        for ts in opening_amounts:
+            if opening_amounts[ts] > 0:
+                break
+        else:
+            # 如果没有一个contract中有持仓，则认为交易结束。
+            instance_status = INSTANCE_STATUS_FINISHED
+
+        conn = Conn(self["db_name"])
+        conn.execute(
+            "UPDATE {trade_type}_instance_backtest SET wait_finish_timestamp = ?, wait_finish_datetime = ?,"
+            " status = ? WHERE id = ?".format(trade_type=self["trade_type"]),
+            (
+                self["open_expired_timestamp"],
+                self["open_expired_datetime"],
+                instance_status,
+                self["id"],
+            ),
+        )
+        self["status"] = instance_status
+        # 还有未平的仓位时
+        if instance_status == INSTANCE_STATUS_LIQUIDATING:
+            return self["open_expired_timestamp"]
+
+        # 已经完成平仓时，这时属于finish阶段
+        # 步骤一： 解冻对应的资产。
+        asset: Asset = self["asset"]
+        place_timestamp = self["open_expired_timestamp"]
+        asset.unfreeze(self["sub_freeze_asset"], -self["param"]["position"], place_timestamp)
+        # 步骤二： 记录对应损益。
+        income_amount = asset.calculate_income(self["id"], self["unit_amount"], standard=True)
+        asset.income(income_amount, place_timestamp)
+
+        conn = Conn(self["db_name"])
+        conn.execute(
+            "UPDATE {}_instance_backtest SET total_pnl_asset = ? WHERE id = ?".format(self["trade_type"]),
+            (
+                income_amount,
+                self["id"],
+            )
+        )
+        return 0
 
     # 返回结果为该阶段结束时间，如果返回0表示该阶段没有触发
     def back_test_waiting(self, bt_wait_start_timestamp: int) -> int:

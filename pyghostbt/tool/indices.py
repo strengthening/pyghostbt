@@ -3,8 +3,9 @@ import talib
 import numpy as np
 
 from jsonschema import validate
-from pyghostbt.const import *
+from typing import List
 from pyanalysis.mysql import Conn
+from pyghostbt.const import *
 
 # 在此处设置对应的指标名称常量名称
 # 真实波动幅度，
@@ -58,13 +59,28 @@ class Indices(dict):
         )
 
     @staticmethod
-    def EMA(close, time_period=30):
-        if isinstance(close, list):
-            close = np.array(close)
-        return talib.EMA(close, time_period)
+    def SMA(
+            closes: List[float],
+            time_period: int = 30,
+    ):
+        closes = np.array([float(close) for close in closes])
+        return [float(sma) for sma in talib.SMA(closes, time_period)]
 
     @staticmethod
-    def MACD(close, fast_period=12, slow_period=26, signal_period=9):
+    def EMA(
+            closes: List[float],
+            time_period: int = 30,
+    ):
+        closes = np.array([float(close) for close in closes])
+        return [float(ema) for ema in talib.EMA(closes, time_period)]
+
+    @staticmethod
+    def MACD(
+            close: List[float],
+            fast_period: int = 12,
+            slow_period: int = 26,
+            signal_period: int = 9,
+    ):
         if isinstance(close, list):
             close = np.array(close)
         return talib.MACD(close, fast_period, slow_period, signal_period)
@@ -80,7 +96,10 @@ class Indices(dict):
         return result
 
     @staticmethod
-    def ATR(candles, time_period=14):
+    def ATR(
+            candles: List[dict],
+            time_period: int = 14,
+    ):
         # the return type is numpy.float64, so change it to pythons float
         return [float(atr) for atr in talib.ATR(
             np.array([float(k["high"]) for k in candles]),

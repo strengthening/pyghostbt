@@ -204,8 +204,8 @@ class Strategy(Runtime):
     def check_instance(instance):
         validate(instance=instance, schema=instance_param)
 
-    # 获取未完成的instance ids
-    def _get_unfinished_ids(self, timestamp: int) -> List[int]:
+    # 获取instance 风险等级。
+    def _get_risk_level(self, timestamp: int, instance_id: int) -> int:
         conn = Conn(self["db_name"])
         table_name = "{trade_type}_instance_{mode}".format(
             trade_type=self["trade_type"],
@@ -213,7 +213,7 @@ class Strategy(Runtime):
         )
         query_sql = """
         SELECT id FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
-        AND status in (?, ?) ORDER BY id
+        AND status in (?, ?) ORDER BY open_start_timestamp, id
         """
         params = (
             self["symbol"], self["exchange"], self["strategy"], INSTANCE_STATUS_OPENING, INSTANCE_STATUS_LIQUIDATING,
@@ -222,15 +222,20 @@ class Strategy(Runtime):
         if self["mode"] == MODE_BACKTEST:
             query_sql = """
             SELECT id FROM {} WHERE backtest_id = ? AND symbol = ? AND exchange = ?
-             AND strategy = ? AND open_start_timestamp <= ? AND liquidate_finish_timestamp >= ? 
-             ORDER BY id
+             AND strategy = ? AND open_start_timestamp < ? AND liquidate_finish_timestamp > ? 
+             ORDER BY open_start_timestamp, id
             """
             params = (self["backtest_id"], self["symbol"], self["exchange"], self["strategy"], timestamp, timestamp)
         instances = conn.query(
             query_sql.format(table_name),
             params,
         )
-        return [i["id"] for i in instances]
+
+        instance_ids = [i["id"] for i in instances]
+        risk_level = len(instance_ids)
+        if instance_id in instance_ids:
+            risk_level = instance_ids.index(instance_id)
+        return risk_level
 
     def _get_waiting_instance_id(self) -> int:
         conn = Conn(self["db_name"])

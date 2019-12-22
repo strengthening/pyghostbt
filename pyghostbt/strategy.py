@@ -1,3 +1,6 @@
+from typing import List
+from jsonschema import validate
+
 from pyanalysis.mysql import Conn
 from pyanalysis.moment import moment
 from pyghostbt.tool.runtime import Runtime
@@ -7,7 +10,6 @@ from pyghostbt.tool.param import Param
 from pyghostbt.tool.order import FutureOrder
 from pyghostbt.util import get_contract_type
 from pyghostbt.const import *
-from jsonschema import validate
 
 strategy_input = {
     "type": "object",
@@ -202,32 +204,33 @@ class Strategy(Runtime):
     def check_instance(instance):
         validate(instance=instance, schema=instance_param)
 
-    # 获取风险等级
-    def _check_risk_level(self, timestamp: int) -> int:
+    # 获取未完成的instance ids
+    def _get_unfinished_ids(self, timestamp: int) -> List[int]:
         conn = Conn(self["db_name"])
         table_name = "{trade_type}_instance_{mode}".format(
             trade_type=self["trade_type"],
             mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
         )
-
         query_sql = """
-        SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
-        AND open_start_timestamp <= ? AND liquidate_finish_timestamp >= ?
+        SELECT id FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
+        AND status in (?, ?) ORDER BY id
         """
-        params = (self["symbol"], self["exchange"], self["strategy"], timestamp, timestamp)
+        params = (
+            self["symbol"], self["exchange"], self["strategy"], INSTANCE_STATUS_OPENING, INSTANCE_STATUS_LIQUIDATING,
+        )
 
         if self["mode"] == MODE_BACKTEST:
             query_sql = """
-            SELECT * FROM {} WHERE backtest_id = ? AND symbol = ? AND exchange = ?
-             AND strategy = ? AND open_start_timestamp <= ? AND liquidate_finish_timestamp >= ?
+            SELECT id FROM {} WHERE backtest_id = ? AND symbol = ? AND exchange = ?
+             AND strategy = ? AND open_start_timestamp <= ? AND liquidate_finish_timestamp >= ? 
+             ORDER BY id
             """
             params = (self["backtest_id"], self["symbol"], self["exchange"], self["strategy"], timestamp, timestamp)
-
         instances = conn.query(
             query_sql.format(table_name),
             params,
         )
-        return len(instances)
+        return [i["id"] for i in instances]
 
     def _get_waiting_instance_id(self) -> int:
         conn = Conn(self["db_name"])

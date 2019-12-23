@@ -10,8 +10,10 @@ PARAM_NAME_POSITION = "position"
 PARAM_NAME_MAX_REL_LOSS = "max_rel_loss"
 # 多：最大止损价/下单价-1 空：1-最大止损价/下单价，负数
 PARAM_NAME_MAX_ABS_LOSS = "max_abs_loss"
-# 多：最大止盈利价/下单价-1 空：1-最大止盈价/下单价，正数
-PARAM_NAME_MAX_ABS_PROFIT = "max_abs_profit"
+
+PARAM_NAME_1ST_ABS_PROFIT_RATIO = "1st_abs_profit_ratio"
+
+PARAM_NAME_2ND_ABS_PROFIT_RATIO = "2nd_abs_profit_ratio"
 # 下单价格间隔的值。
 PARAM_NAME_PLACE_DIFF = "place_diff"
 
@@ -23,7 +25,8 @@ param_input = {
         PARAM_NAME_POSITION: {"type": "number", "multipleOf": 0.1, "minimum": 0.1, "maximum": 5},
         PARAM_NAME_MAX_REL_LOSS: {"type": "number", "maximum": -0.00000001},
         PARAM_NAME_MAX_ABS_LOSS: {"type": "number", "maximum": 1.0, "minimum": -1.0},
-        PARAM_NAME_MAX_ABS_PROFIT: {"type": "number", "minimum": 0.00000001},
+        PARAM_NAME_1ST_ABS_PROFIT_RATIO: {"type": "number", "maximum": 20.0, "minimum": -1.0},
+        PARAM_NAME_2ND_ABS_PROFIT_RATIO: {"type": "number", "maximum": 20.0, "minimum": -1.0},
         PARAM_NAME_PLACE_DIFF: {"type": "integer"},
     },
 }

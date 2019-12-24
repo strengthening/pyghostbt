@@ -28,7 +28,7 @@ instance_param = {
     "type": "object",
     "required": [
         "id", "symbol", "exchange", "strategy", "status", "interval",
-        "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss",
+        "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss_ratio",
         "wait_start_timestamp", "wait_start_datetime",
         "wait_finish_timestamp", "wait_finish_datetime",
         "open_start_timestamp", "open_start_datetime",
@@ -97,7 +97,7 @@ instance_param = {
         "param_position": {
             "type": "number"
         },
-        "param_max_abs_loss": {
+        "param_max_abs_loss_ratio": {
             "type": "number",
             "minimum": -0.5,
             "maximum": 0.5,
@@ -348,7 +348,7 @@ class Strategy(Runtime):
         self["sub_freeze_asset"] = instance["sub_freeze_asset"]
 
         self["param_position"] = instance["param_position"]
-        self["param_max_abs_loss"] = instance["param_max_abs_loss"]
+        self["param_max_abs_loss_ratio"] = instance["param_max_abs_loss_ratio"]
 
         self["wait_start_timestamp"] = instance["wait_start_timestamp"]
         self["wait_start_datetime"] = instance["wait_start_datetime"]
@@ -390,7 +390,7 @@ class Strategy(Runtime):
         self["sub_freeze_asset"] = tmp_instance["sub_freeze_asset"]
 
         self["param_position"] = tmp_instance["param_position"]
-        self["param_max_abs_loss"] = tmp_instance["param_max_abs_loss"]
+        self["param_max_abs_loss_ratio"] = tmp_instance["param_max_abs_loss_ratio"]
 
         self["wait_start_timestamp"] = tmp_instance["wait_start_timestamp"]
         self["wait_start_datetime"] = tmp_instance["wait_start_datetime"]

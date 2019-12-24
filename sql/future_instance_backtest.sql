@@ -16,7 +16,7 @@ CREATE TABLE `future_instance_backtest` (
   `sub_freeze_asset` decimal(20,8) COMMENT 'the sub account freeze asset for this instance',
 
   `param_position` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',
-  `param_max_abs_loss` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT '',
+  `param_max_abs_loss_ratio` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT '',
 
   `wait_start_timestamp` bigint(13) NOT NULL COMMENT '等待开单开始时间戳',
   `wait_start_datetime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '等待开单开始时间',

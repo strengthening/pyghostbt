@@ -15,7 +15,7 @@ instance_param = {
     "required": [
         "id", "symbol", "exchange", "strategy", "status", "interval",
         "wait_start_timestamp", "wait_start_datetime", "wait_finish_timestamp", "wait_finish_datetime",
-        "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss",
+        "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss_ratio",
     ],
     "properties": {
         "id": {
@@ -93,7 +93,7 @@ instance_param = {
         "param_position": {
             "type": "number"
         },
-        "param_max_abs_loss": {
+        "param_max_abs_loss_ratio": {
             "type": "number",
             "minimum": -0.5,
             "maximum": 0.5,
@@ -330,7 +330,7 @@ class Backtest(Strategy):
                 "open_expired_timestamp = ?, open_expired_datetime = ?, "
                 "liquidate_start_timestamp = ?, liquidate_start_datetime = ?, "
                 "liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?, "
-                "total_asset = ?, sub_freeze_asset = ?, param_position = ?, param_max_abs_loss = ? "
+                "total_asset = ?, sub_freeze_asset = ?, param_position = ?, param_max_abs_loss_ratio = ? "
                 "WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
                 (
                     self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
@@ -342,7 +342,7 @@ class Backtest(Strategy):
                     self["open_expired_timestamp"], self["open_expired_datetime"],
                     self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
                     self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
-                    self["total_asset"], self["sub_freeze_asset"], self["param_position"], self["param_max_abs_loss"],
+                    self["total_asset"], self["sub_freeze_asset"], self["param_position"], self["param_max_abs_loss_ratio"],
                     self["id"],
                 ),
             )

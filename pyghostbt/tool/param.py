@@ -2,14 +2,15 @@ from jsonschema import validate
 from pyanalysis.mysql import *
 from pyghostbt.const import *
 
+
 # 海龟天数
 PARAM_NAME_TURTLE_DAYS = "turtle_days"
 # 仓位 必须是float且小数点后面1位。
 PARAM_NAME_POSITION = "position"
-# 相对于1 position 账户的损失，负数
-PARAM_NAME_MAX_REL_LOSS = "max_rel_loss"
-# 多：最大止损价/下单价-1 空：1-最大止损价/下单价，负数
-PARAM_NAME_MAX_ABS_LOSS = "max_abs_loss"
+# 相对于1 position 账户的损失比例，负数
+PARAM_NAME_MAX_REL_LOSS_RATIO = "max_rel_loss_ratio"
+# 平仓价格对应于开仓价格的比率 l_price/o_price - 1，正负皆可
+PARAM_NAME_MAX_ABS_LOSS_RATIO = "max_abs_loss_ratio"
 
 PARAM_NAME_1ST_ABS_PROFIT_RATIO = "1st_abs_profit_ratio"
 
@@ -22,9 +23,9 @@ param_input = {
     # "required": [PARAM_NAME_POSITION, PARAM_NAME_MAX_ABS_LOSS],
     "properties": {
         PARAM_NAME_TURTLE_DAYS: {"type": "integer", "minimum": 0, "maximum": 30},
-        PARAM_NAME_POSITION: {"type": "number", "multipleOf": 0.1, "minimum": 0.1, "maximum": 5},
-        PARAM_NAME_MAX_REL_LOSS: {"type": "number", "maximum": -0.00000001},
-        PARAM_NAME_MAX_ABS_LOSS: {"type": "number", "maximum": 1.0, "minimum": -1.0},
+        PARAM_NAME_POSITION: {"type": "number", "minimum": 0.1, "maximum": 5},
+        PARAM_NAME_MAX_REL_LOSS_RATIO: {"type": "number", "maximum": -0.00000001},
+        PARAM_NAME_MAX_ABS_LOSS_RATIO: {"type": "number", "maximum": 1.0, "minimum": -1.0},
         PARAM_NAME_1ST_ABS_PROFIT_RATIO: {"type": "number", "maximum": 20.0, "minimum": -1.0},
         PARAM_NAME_2ND_ABS_PROFIT_RATIO: {"type": "number", "maximum": 20.0, "minimum": -1.0},
         PARAM_NAME_PLACE_DIFF: {"type": "integer"},

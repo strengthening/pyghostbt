@@ -62,6 +62,7 @@ def get_o_or_l_price(
 
 def get_open_amount(
         total_asset: float = None,
+        max_rel_loss_ratio: float = None,
         position: float = None,
         unit_amount: int = None,
         slippage: float = None,
@@ -70,7 +71,7 @@ def get_open_amount(
         open_times: int = 3,
         fee_rate: float = -0.0005,  # The fee_rate must be negative.
         scale: float = 1.0,
-) -> List[int]:
+) -> (List[int], float):
     """Get the open amount array.
 
     The open amount is a complicated calculating process. This func calculate it for worst situation. Why complicated?
@@ -81,11 +82,12 @@ def get_open_amount(
 
     Args:
         total_asset: The total asset of the pair
+        max_rel_loss_ratio: The max loss relative 1 position, defined in param.
         position: The position want to open.
         unit_amount: The contract unit amount.
         slippage: The slippage must be negative.
         open_price: The avg_price of open orders.
-        liquidate_price: The avg_price of liquidate orders.
+        liquidate_price: The avg_price of worst loss liquidate orders.
         open_times: The times to divide.
         fee_rate: The fee rate
         scale:
@@ -93,8 +95,9 @@ def get_open_amount(
     Returns:
         amount array of each open times.
     """
+
     real_open_price = real_number(open_price)
-    real_liquidate_price = real_number(liquidate_price)
+    real_liquidate_price = real_number(liquidate_price) * (1.0 + slippage)
     worst_real_price = min(real_open_price, real_liquidate_price)
 
     # 粗略的开仓张数
@@ -102,18 +105,28 @@ def get_open_amount(
 
     # 计算净资产
     max_open_fee = total_asset * position * fee_rate
-    max_liquidate_fee = open_amount * unit_amount * fee_rate / (real_liquidate_price * (1.0 + slippage))
+    max_liquidate_fee = open_amount * unit_amount * fee_rate / real_liquidate_price
     net_asset = total_asset + max_open_fee + max_liquidate_fee
     open_amount = net_asset * position * worst_real_price * (1.0 + slippage) / unit_amount
 
     amounts: List[int] = []
+    sum_amount = 0
     sum_scale = scale * open_times
     if scale != 1.0:
         sum_scale = (1 - math.pow(scale, open_times)) / (1 - scale)
     for i in range(open_times):
         amount = int(open_amount * math.pow(scale, i) / sum_scale)
+        sum_amount += amount
         amounts.append(amount)
-    return amounts
+
+    real_loss_asset = -abs(sum_amount * unit_amount * (real_liquidate_price - real_open_price))
+    real_loss_asset = real_loss_asset / real_open_price / real_liquidate_price
+    max_loss_asset = max_rel_loss_ratio * total_asset * position  # 相对于1 postion亏损最大资产值
+
+    if real_loss_asset < max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
+        return [int(max_loss_asset / real_loss_asset * amount) for amount in amounts], max_loss_asset / real_loss_asset
+
+    return amounts, position
 
 
 def get_contract_type(timestamp: int, due_timestamp: int) -> str:

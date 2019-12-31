@@ -59,7 +59,10 @@ class Order(dict):
         self._trade_type = kwargs.get("trade_type")
         self._mode = kwargs.get("mode")
         self._db_name = kwargs.get("db_name")
-        self._table_name = self.__TABLE_NAME_FORMAT__.format(**kwargs)
+        self._table_name = self.__TABLE_NAME_FORMAT__.format(
+            trade_type=self._trade_type,
+            mode=MODE_BACKTEST if self._mode == MODE_BACKTEST else MODE_STRATEGY,
+        )
 
 
 future_order_init = {

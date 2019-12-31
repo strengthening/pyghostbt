@@ -368,7 +368,7 @@ class Asset(dict):
         conn = Conn(self._db_name)
         result = conn.query_one(sql, params)
         if result is None:
-            raise RuntimeError("you must init_amount before backtest. ")
+            raise RuntimeError("you must init_amount before load the asset. ")
         self["total_asset"] = result["total_asset"]
         self["sub_asset"] = result["sub_asset"]
         self["sub_freeze_asset"] = result["sub_freeze_asset"]

@@ -258,7 +258,10 @@ class Strategy(Runtime):
                 self["strategy"], INSTANCE_STATUS_WAITING, 0,
             )
         item = conn.query_one(
-            query_sql.format(trade_type=self["trade_type"], mode=self["mode"]),
+            query_sql.format(
+                trade_type=self["trade_type"],
+                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+            ),
             params
         )
         return item["id"] if item else 0

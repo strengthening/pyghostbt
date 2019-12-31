@@ -55,7 +55,7 @@ class Indices(dict):
         self._trade_type = kwargs.get("trade_type")
         self._table_name = self.__TABLE_NAME_FORMAT__.format(
             trade_type=self._trade_type,
-            mode=self._mode,
+            mode=MODE_BACKTEST if self._mode == MODE_BACKTEST else MODE_STRATEGY,
         )
 
     @staticmethod

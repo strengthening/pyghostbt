@@ -375,7 +375,7 @@ class Strategy(Runtime):
     def load_from_db(self, instance_id):
         conn = Conn(self["db_name"])
         tmp_instance = conn.query_one(
-            "SELECT * FROM {}_instance_{} WHERE id = ?".format(
+            "SELECT * FROM {trade_type}_instance_{mode} WHERE id = ?".format(
                 trade_type=self["trade_type"],
                 mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
             ),
@@ -385,6 +385,7 @@ class Strategy(Runtime):
         if tmp_instance is None:
             raise RuntimeError("the instance is None. ")
 
+        self["id"] = tmp_instance["id"]
         self["status"] = tmp_instance["status"]
         self["total_asset"] = tmp_instance["total_asset"]
         self["sub_freeze_asset"] = tmp_instance["sub_freeze_asset"]
@@ -401,6 +402,8 @@ class Strategy(Runtime):
         self["open_start_datetime"] = tmp_instance["open_start_datetime"]
         self["open_finish_timestamp"] = tmp_instance["open_finish_timestamp"]
         self["open_finish_datetime"] = tmp_instance["open_finish_datetime"]
+        self["open_expired_timestamp"] = tmp_instance["open_expired_timestamp"]
+        self["open_expired_datetime"] = tmp_instance["open_expired_datetime"]
 
         self["liquidate_start_timestamp"] = tmp_instance["liquidate_start_timestamp"]
         self["liquidate_start_datetime"] = tmp_instance["liquidate_start_datetime"]

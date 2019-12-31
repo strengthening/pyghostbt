@@ -134,7 +134,7 @@ class Backtest(Strategy):
                 order["due_datetime"] = candle["due_date"]
                 return instance
         else:
-            raise RuntimeError("do not support the other place_type")
+            raise RuntimeError("do not support the other place_type", order["place_type"])
         return {}
 
     @staticmethod

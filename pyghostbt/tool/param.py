@@ -48,7 +48,7 @@ param_config = {
             "enum": [MODE_ONLINE, MODE_OFFLINE, MODE_BACKTEST],
         },
         "backtest_id": {
-            "type": "string",
+            "type": ["string", "null"],
             "minLength": 32,
             "maxLength": 32
         },

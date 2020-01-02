@@ -69,7 +69,10 @@ class Runtime(dict):
         super().__init__(kw)
         validate(instance=self, schema=runtime_input)
         if not self.get("backtest_id"):
-            self.__setitem__("backtest_id", uuid())
+            if self.get("mode") == MODE_BACKTEST:
+                self.__setitem__("backtest_id", uuid())
+            # else:
+            #     self.__setitem__("backtest_id", "")
         # self._p = param.Param(
         #     self["param"],
         #     db_name=self.get("db_name_param") or self.get("db_name"),

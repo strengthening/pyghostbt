@@ -22,7 +22,7 @@ order_input = {
             "minimum": 0,
         },
         "backtest_id": {
-            "type": "string",
+            "type": ["string", "null"],
             "minLength": 32,
             "maxLength": 32,
         },

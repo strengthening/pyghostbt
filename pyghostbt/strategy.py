@@ -325,11 +325,37 @@ class Strategy(Runtime):
             last_insert_id = conn.insert(insert_sql.format(**self), params)
             self.__setitem__("id", last_insert_id)
 
+    def _is_opened(self, wait_start_timestamp: int) -> bool:
+        conn = Conn(self["db_name"])
+        opened = conn.query(
+            "SELECT id FROM future_instance_strategy WHERE symbol = ? AND exchange = ? AND contract_type = ?"
+            " AND strategy = ? AND wait_start_timestamp = ? AND status > ?",
+            (
+                self["symbol"],
+                self["exchange"],
+                self["contract_type"],
+                self["strategy"],
+                wait_start_timestamp,
+                INSTANCE_STATUS_WAITING,
+            ),
+        )
+        return len(opened) > 0
+
     def get_opening(self, timestamp: int) -> list:
-        pass
+        if self["mode"] not in (MODE_BACKTEST, MODE_STRATEGY):
+            self["mode"] = MODE_STRATEGY
+
+        if self["mode"] == MODE_STRATEGY:
+            self.load_from_db(self["id"])
+        return []
 
     def get_liquidating(self, timestamp: int) -> list:
-        pass
+        if self["mode"] not in (MODE_BACKTEST, MODE_STRATEGY):
+            self["mode"] = MODE_STRATEGY
+
+        if self["mode"] == MODE_STRATEGY:
+            self.load_from_db(self["id"])
+        return []
 
     def get_instances(self, timestamp):
         if self["status"] == INSTANCE_STATUS_WAITING:
@@ -407,6 +433,7 @@ class Strategy(Runtime):
         self["open_finish_datetime"] = tmp_instance["open_finish_datetime"]
         self["open_expired_timestamp"] = tmp_instance["open_expired_timestamp"]
         self["open_expired_datetime"] = tmp_instance["open_expired_datetime"]
+        self["open_times"] = tmp_instance["open_times"]
 
         self["liquidate_start_timestamp"] = tmp_instance["liquidate_start_timestamp"]
         self["liquidate_start_datetime"] = tmp_instance["liquidate_start_datetime"]

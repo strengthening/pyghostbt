@@ -31,7 +31,7 @@ indices_config = {
         },
         "mode": {
             "type": "string",
-            "enum": [MODE_ONLINE, MODE_OFFLINE, MODE_BACKTEST],
+            "enum": [MODE_ONLINE, MODE_OFFLINE, MODE_BACKTEST, MODE_STRATEGY],
         },
         # "backtest_id": {
         #     "type": "string",

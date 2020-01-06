@@ -42,7 +42,7 @@ order_config = {
         },
         "mode": {
             "type": "string",
-            "enum": [MODE_ONLINE, MODE_OFFLINE, MODE_BACKTEST],
+            "enum": [MODE_ONLINE, MODE_OFFLINE, MODE_BACKTEST, MODE_STRATEGY],
         }
     }
 }
@@ -68,7 +68,7 @@ class Order(dict):
 future_order_init = {
     "type": "object",
     "required": [
-        "contract_type", "place_type", "price", "amount", "lever", "unit_amount",
+        "contract_type", "place_type", "price", "amount", "lever", "unit_amount", "due_timestamp", "due_datetime",
     ],
     "properties": {
         "contract_type": {
@@ -102,7 +102,14 @@ future_order_init = {
         },
         "unit_amount": {
             "type": "integer",
-        }
+        },
+        "due_timestamp":{
+            "type": "integer",
+            "minimum": 1000000000000,
+            "maximum": 9999999999999,
+        }, "due_datetime": {
+            "type": "string",
+        },
     }
 }
 

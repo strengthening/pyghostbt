@@ -42,8 +42,9 @@ asset_input = {
             "type": "string",
             "enum": [
                 MODE_ONLINE,
-                MODE_ONLINE,
+                MODE_OFFLINE,
                 MODE_BACKTEST,
+                MODE_STRATEGY,
             ],
         },
         "db_name": {

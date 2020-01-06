@@ -12,7 +12,8 @@ runtime_input = {
             "enum": [
                 MODE_ONLINE,
                 MODE_OFFLINE,
-                MODE_BACKTEST
+                MODE_BACKTEST,
+                MODE_STRATEGY,
             ],
         },
         "trade_type": {

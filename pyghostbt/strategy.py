@@ -213,10 +213,11 @@ class Strategy(Runtime):
         )
         query_sql = """
         SELECT id FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
-        AND status in (?, ?) ORDER BY open_start_timestamp, id
+        AND status IN (?, ?, ?) ORDER BY open_start_timestamp, id
         """
         params = (
-            self["symbol"], self["exchange"], self["strategy"], INSTANCE_STATUS_OPENING, INSTANCE_STATUS_LIQUIDATING,
+            self["symbol"], self["exchange"], self["strategy"],
+            INSTANCE_STATUS_OPENING, INSTANCE_STATUS_LIQUIDATING, INSTANCE_STATUS_ERROR,
         )
 
         if self["mode"] == MODE_BACKTEST:

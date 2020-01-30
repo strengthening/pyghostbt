@@ -519,7 +519,7 @@ class Strategy(Runtime):
                 "contract_type": get_contract_type(timestamp, due_timestamp),
                 "instance_id": self["id"],
                 "sequence": sequence,
-                "price": price,
+                "price": int(price),
                 "amount": amount,
                 "lever": self["lever"],
                 "due_timestamp": due_timestamp,

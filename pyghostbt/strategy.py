@@ -223,10 +223,19 @@ class Strategy(Runtime):
         if self["mode"] == MODE_BACKTEST:
             query_sql = """
             SELECT id FROM {} WHERE backtest_id = ? AND symbol = ? AND exchange = ?
-             AND strategy = ? AND open_start_timestamp < ? AND liquidate_finish_timestamp > ? 
+             AND strategy = ? AND open_start_timestamp < ? AND (liquidate_finish_timestamp > ? OR status in (?,?)) 
              ORDER BY open_start_timestamp, id
             """
-            params = (self["backtest_id"], self["symbol"], self["exchange"], self["strategy"], timestamp, timestamp)
+            params = (
+                self["backtest_id"],
+                self["symbol"],
+                self["exchange"],
+                self["strategy"],
+                timestamp,
+                timestamp,
+                INSTANCE_STATUS_OPENING,
+                INSTANCE_STATUS_LIQUIDATING,
+            )
         instances = conn.query(
             query_sql.format(table_name),
             params,

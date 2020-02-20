@@ -38,7 +38,7 @@ class Strategy1st(Strategy):
         moment = m.get(timestamp)
         the_last_day = moment.to(self["timezone"] or "Asia/Shanghai").floor("day")
         the_start_day = the_last_day.shift(days=-20)
-        results = self._k.raw_query(
+        results = self._kline.query(
             the_start_day.millisecond_timestamp,
             the_last_day.millisecond_timestamp,
             KLINE_INTERVAL_1DAY,

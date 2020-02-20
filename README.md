@@ -33,6 +33,11 @@ The anti-event backtesting framework has pros and cons.
 ## Unittest
 python3 -m unittest test/future/log.py
 
+## Install
+
+python3.7 setup.py sdist  
+pip3.7 install dist/XXXX.tar.gz
+
 ## License
 
 The project use the [New BSD License](./LICENSE)

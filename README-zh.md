@@ -34,6 +34,11 @@ Pyghostbt是一款开源回测框架，专注于程序化交易的中低频交�
 
 python3 -m unittest test/future/log.py
 
+## 安装
+
+python3.7 setup.py sdist  
+pip3.7 install dist/XXXX.tar.gz  
+
 ## 许可协议
 
 项目使用 [New BSD 许可协议](./LICENSE)

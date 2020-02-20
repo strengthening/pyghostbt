@@ -62,3 +62,15 @@ class Factor(object):
         if fact_data is None:
             raise RuntimeError("Can not find the factor value, there have no value in database. ")
         return fact_data["factor_value"]
+
+    def get_by_id(self, fact_id: int, timestamp: int):
+        conn = Conn(self._db_name)
+        fact_data = conn.query_one(
+            "SELECT factor_value FROM factor_dataset"
+            " WHERE factor_id = ? AND timestamp <= ? ORDER BY timestamp DESC LIMIT 1",
+            (fact_id, timestamp),
+        )
+
+        if fact_data is None:
+            raise RuntimeError("Can not find the factor value, there have no value in database. ")
+        return fact_data["factor_value"]

@@ -108,6 +108,13 @@ class Indices(dict):
             time_period,
         )]
 
+    @staticmethod
+    def DT_RANGE(candles: List[dict]):
+        return max(
+            max([c["high"] for c in candles]) - min([c["close"] for c in candles]),
+            max([c["close"] for c in candles]) - min([c["low"] for c in candles]),
+        )
+
     def add_item(self, indices):
         validate(instance=indices, schema=indices_input)
         for indices_name in indices:

@@ -73,22 +73,6 @@ class Runtime(dict):
         if not self.get("backtest_id"):
             if self.get("mode") == MODE_BACKTEST:
                 self.__setitem__("backtest_id", uuid())
-            # else:
-            #     self.__setitem__("backtest_id", "")
-        # self._p = param.Param(
-        #     self["param"],
-        #     db_name=self.get("db_name_param") or self.get("db_name"),
-        #     mode=self.get("mode"),
-        #     trade_type=self.get("trade_type"),
-        # )
-
-        self._k = Kline(
-            trade_type=self.get("trade_type"),
-            symbol=self.get("symbol"),
-            exchange=self.get("exchange"),
-            contract_type=self.get("contract_type"),
-            db_name=self.get("db_name_kline") or self.get("db_name"),
-        )
 
         self._kline = Kline(
             trade_type=self.get("trade_type"),
@@ -102,9 +86,8 @@ class Runtime(dict):
             trade_type=self.get("trade_type"),
             symbol=self.get("symbol"),
             contract_type=self.get("contract_type"),
-            db_name=self.get("db_name_factor") or self.get("db_name"),
+            db_name=self.get("db_name_kline") or self.get("db_name"),
         )
-
 
 # class StrategyRuntime(Runtime):
 #     def __init__(self, kw):
@@ -117,7 +100,6 @@ class Runtime(dict):
 #
 #         strategy_kw = kw.copy()
 #         self._s = StrategyRuntime(strategy_kw)
-
 
 
 # if __name__ == "__main__":

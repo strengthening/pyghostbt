@@ -1,5 +1,6 @@
 from jsonschema import validate
 from pyanalysis.mysql import Conn
+from pyanalysis.moment import moment
 from pyghostbt.util import standard_number
 from pyghostbt.const import *
 
@@ -66,7 +67,7 @@ class Kline(object):
         candle["close"] = standard_number(candle["close"])
         return candle
 
-    def raw_query(
+    def query(
             self,
             start_timestamp: int,
             finish_timestamp: int,
@@ -77,7 +78,7 @@ class Kline(object):
         params = (self.symbol, self.exchange, interval, start_timestamp, finish_timestamp)
         if self.trade_type == TRADE_TYPE_FUTURE:
             params = (self.symbol, self.exchange, self.contract_type, interval, start_timestamp, finish_timestamp)
-        # print(self.sql, params)
+
         candles = conn.query(self.sql, params)
         if standard:
             std_candles = []
@@ -88,7 +89,55 @@ class Kline(object):
 
         return candles
 
-    def range_query(
+    def query_by_group(
+            self,
+            start_timestamp: int,
+            finish_timestamp: int,
+            interval: int,
+            standard: bool = False,
+    ):
+        if interval == KLINE_INTERVAL_1MIN:
+            return self.query(start_timestamp, finish_timestamp, interval, standard)
+
+        intervals = {
+            KLINE_INTERVAL_1DAY: 24 * 60 * 60 * 1000,
+            KLINE_INTERVAL_4HOUR: 4 * 60 * 60 * 1000,
+            KLINE_INTERVAL_1HOUR: 60 * 60 * 1000,
+            KLINE_INTERVAL_15MIN: 15 * 60 * 1000,
+        }
+
+        if intervals.get(interval) is None:
+            raise RuntimeError("can not use the interval", interval)
+
+        num = intervals[interval]
+        flag_timestamp = start_timestamp
+        result = []
+
+        while flag_timestamp < finish_timestamp:
+            candles = self.query(flag_timestamp, flag_timestamp + num, KLINE_INTERVAL_1MIN, standard)
+            flag_timestamp += num
+            if len(candles) == 0:
+                continue
+
+            tmp_candle = candles[0].copy()
+            tmp_candle["high"] = candles[0]["high"]
+            tmp_candle["low"] = candles[0]["low"]
+            tmp_candle["close"] = candles[-1]["close"]
+            tmp_candle["vol"] = 0
+            tmp_candle["timestamp"] = flag_timestamp
+            tmp_candle["date"] = moment.get(flag_timestamp).to("Asia/Shanghai").format("YYYY-MM-DD HH:mm:ss")
+
+            for candle in candles:
+                if candle["high"] > tmp_candle["high"]:
+                    tmp_candle["high"] = candle["high"]
+                if candle["low"] < tmp_candle["low"]:
+                    tmp_candle["low"] = candle["low"]
+                tmp_candle["vol"] += candle["vol"]
+
+            result.append(tmp_candle)
+        return result
+
+    def query_range(
             self,
             start_timestamp: int,
             finish_timestamp: int,
@@ -105,9 +154,9 @@ class Kline(object):
         for candle in candles:
             yield self.__standard_candle(candle) if standard else candle
         if len(candles) == 100:
-            yield from self.range_query(candles[-1]["timestamp"] + 1000, finish_timestamp, interval, standard=standard)
+            yield from self.query_range(candles[-1]["timestamp"] + 1000, finish_timestamp, interval, standard=standard)
 
-    def range_query_all_contract(
+    def query_range_contracts(
             self,
             start_timestamp: int,
             finish_timestamp: int,
@@ -134,7 +183,7 @@ class Kline(object):
         for candle in candles:
             yield self.__standard_candle(candle) if standard else candle
         if len(candles) >= 100:
-            yield from self.range_query_all_contract(
+            yield from self.query_range_contracts(
                 candles[-1]["timestamp"] + 1000,
                 finish_timestamp,
                 interval,

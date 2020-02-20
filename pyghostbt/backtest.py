@@ -243,7 +243,7 @@ class Backtest(Strategy):
             instances: List[Dict] = None,
             standard: bool = True,
     ) -> dict:
-        candles = self._k.range_query(
+        candles = self._kline.query_range(
             start_timestamp,
             finish_timestamp,
             KLINE_INTERVAL_1MIN,
@@ -264,7 +264,7 @@ class Backtest(Strategy):
             instances: list = None,
             standard: bool = True,
     ) -> List[dict]:
-        candles = self._k.range_query_all_contract(
+        candles = self._kline.query_range_contracts(
             start_timestamp,
             finish_timestamp,
             KLINE_INTERVAL_1MIN,
@@ -298,7 +298,7 @@ class Backtest(Strategy):
             instances=None,
             standard=True,
     ) -> dict:
-        candles = self._k.raw_query(
+        candles = self._kline.query(
             start_timestamp,
             finish_timestamp,
             KLINE_INTERVAL_1DAY,
@@ -342,7 +342,8 @@ class Backtest(Strategy):
                     self["open_expired_timestamp"], self["open_expired_datetime"],
                     self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
                     self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
-                    self["total_asset"], self["sub_freeze_asset"], self["param_position"], self["param_max_abs_loss_ratio"],
+                    self["total_asset"], self["sub_freeze_asset"], self["param_position"],
+                    self["param_max_abs_loss_ratio"],
                     self["id"],
                 ),
             )

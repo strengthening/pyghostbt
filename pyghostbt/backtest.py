@@ -133,6 +133,16 @@ class Backtest(Strategy):
                 order["due_timestamp"] = candle["due_timestamp"]
                 order["due_datetime"] = candle["due_date"]
                 return instance
+        elif order["place_type"] == ORDER_PLACE_TYPE_MARKET:
+            order["price"] = candle["close"]
+            order["avg_price"] = candle["close"]
+            order["place_timestamp"] = candle["timestamp"]
+            order["place_datetime"] = candle["date"]
+            order["deal_timestamp"] = candle["timestamp"]
+            order["deal_datetime"] = candle["date"]
+            order["due_timestamp"] = candle["due_timestamp"]
+            order["due_datetime"] = candle["due_date"]
+            return instance
         else:
             raise RuntimeError("do not support the other place_type", order["place_type"])
         return {}

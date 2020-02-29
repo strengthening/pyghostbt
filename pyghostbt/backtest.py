@@ -326,52 +326,52 @@ class Backtest(Strategy):
         self.check_instance(self)
         conn = Conn(self["db_name"])
         one = conn.query_one(
-            "SELECT id FROM {trade_type}_instance_{mode} WHERE id = ?".format(**self),
-            (self["id"],),
+            "SELECT id FROM {trade_type}_instance_{mode} WHERE id = ?".format(**self), (self["id"],),
         )
-        if one:
-            conn.execute(
-                "UPDATE {trade_type}_instance_{mode} SET symbol = ?, exchange = ?, contract_type = ?, "
-                "strategy = ?, unit_amount = ?, lever = ?, status = ?, `interval` = ?, "
-                "wait_start_timestamp = ?, wait_start_datetime = ?, "
-                "wait_finish_timestamp = ?, wait_finish_datetime = ?, "
-                "open_start_timestamp = ?, open_start_datetime = ?, "
-                "open_finish_timestamp = ?, open_finish_datetime = ?, "
-                "open_expired_timestamp = ?, open_expired_datetime = ?, "
-                "liquidate_start_timestamp = ?, liquidate_start_datetime = ?, "
-                "liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?, "
-                "total_asset = ?, sub_freeze_asset = ?, param_position = ?, param_max_abs_loss_ratio = ? "
-                "WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
-                (
-                    self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
-                    self["unit_amount"], self["lever"], self["status"], self["interval"],
-                    self["wait_start_timestamp"], self["wait_start_datetime"],
-                    self["wait_finish_timestamp"], self["wait_finish_datetime"],
-                    self["open_start_timestamp"], self["open_start_datetime"],
-                    self["open_finish_timestamp"], self["open_finish_datetime"],
-                    self["open_expired_timestamp"], self["open_expired_datetime"],
-                    self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
-                    self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
-                    self["total_asset"], self["sub_freeze_asset"], self["param_position"],
-                    self["param_max_abs_loss_ratio"],
-                    self["id"],
-                ),
-            )
 
-            order: FutureOrder = self["order"]
-            order.deal()
-            order.save(
-                check=True,
-                raw_order_data=json.dumps(self),
-            )
-
-            param: Param = self["param"]
-            param.save(self["id"])
-
-            indices: Indices = self["indices"]
-            indices.save(self["id"])
-        else:
+        if one is None:
             raise RuntimeError("I think can not insert in this place. ")
+
+        conn.execute(
+            "UPDATE {trade_type}_instance_{mode} SET symbol = ?, exchange = ?, contract_type = ?,"
+            " strategy = ?, unit_amount = ?, lever = ?, status = ?, `interval` = ?,"
+            " wait_start_timestamp = ?, wait_start_datetime = ?,"
+            " wait_finish_timestamp = ?, wait_finish_datetime = ?,"
+            " open_start_timestamp = ?, open_start_datetime = ?,"
+            " open_finish_timestamp = ?, open_finish_datetime = ?,"
+            " open_expired_timestamp = ?, open_expired_datetime = ?,"
+            " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
+            " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
+            " total_asset = ?, sub_freeze_asset = ?, param_position = ?, param_max_abs_loss_ratio = ?"
+            " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
+            (
+                self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
+                self["unit_amount"], self["lever"], self["status"], self["interval"],
+                self["wait_start_timestamp"], self["wait_start_datetime"],
+                self["wait_finish_timestamp"], self["wait_finish_datetime"],
+                self["open_start_timestamp"], self["open_start_datetime"],
+                self["open_finish_timestamp"], self["open_finish_datetime"],
+                self["open_expired_timestamp"], self["open_expired_datetime"],
+                self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
+                self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
+                self["total_asset"], self["sub_freeze_asset"], self["param_position"],
+                self["param_max_abs_loss_ratio"],
+                self["id"],
+            ),
+        )
+
+        order: FutureOrder = self["order"]
+        order.deal()
+        order.save(
+            check=True,
+            raw_order_data=json.dumps(self),
+        )
+
+        param: Param = self["param"]
+        param.save(self["id"])
+
+        indices: Indices = self["indices"]
+        indices.save(self["id"])
 
     def _opening_expired(self, due_ts: int) -> int:
         """opening阶段超时过后，转到liquidating 或者finished阶段。
@@ -407,19 +407,21 @@ class Backtest(Strategy):
             return self["open_expired_timestamp"]
 
         # 已经完成平仓时，这时属于finish阶段
-        # 步骤一： 解冻对应的资产。
         asset: Asset = self["asset"]
         place_timestamp = self["open_expired_timestamp"]
-        asset.unfreeze(self["sub_freeze_asset"], -self["param"]["position"], place_timestamp)
-        # 步骤二： 记录对应损益。
-        income_amount = asset.calculate_income(self["id"], self["unit_amount"], standard=True)
-        asset.income(income_amount, place_timestamp)
 
+        # 步骤一： 计算需要结算的损益
+        _, settle_pnl = self._settle_pnl()
+
+        # 步骤二： 解冻并结算。
+        asset.unfreeze_and_settle(self["sub_freeze_asset"], self["param"]["position"], settle_pnl, place_timestamp)
+
+        # 步骤三： 更新到对应的instance上。
         conn = Conn(self["db_name"])
         conn.execute(
             "UPDATE {}_instance_backtest SET total_pnl_asset = ? WHERE id = ?".format(self["trade_type"]),
             (
-                income_amount,
+                settle_pnl,
                 self["id"],
             )
         )

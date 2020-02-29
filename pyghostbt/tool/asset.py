@@ -7,7 +7,14 @@ from pyanalysis.moment import moment
 
 asset_input = {
     "type": "object",
-    "required": ["trade_type", "symbol", "exchange", "contract_type", "mode", "db_name"],
+    "required": [
+        "trade_type",
+        "symbol",
+        "exchange",
+        # "contract_type",
+        "mode",
+        "db_name"
+    ],
     "properties": {
         "trade_type": {
             "type": "string",
@@ -66,14 +73,11 @@ account_flow_input = {
         "subject": {
             "type": "string",
             "enum": [
-                SUBJECT_INJECTION,
-                SUBJECT_DIVIDEND,
+                SUBJECT_INVEST,
+                SUBJECT_DIVEST,
                 SUBJECT_FREEZE,
                 SUBJECT_UNFREEZE,
-                SUBJECT_INCOME,
-                SUBJECT_TRANSACTION_FEE,
-                SUBJECT_LOAN_FEE,
-                SUBJECT_ADJUSTMENT,
+                SUBJECT_SETTLE,
                 SUBJECT_TRANSFER_IN,
                 SUBJECT_TRANSFER_OUT,
             ],
@@ -103,7 +107,6 @@ class Asset(dict):
 
         self._symbol = kwargs.get("symbol")
         self._exchange = kwargs.get("exchange")
-        # self._contract_type = kwargs.get("contract_type") remove the contract_type cause, it is not necessary.
         self._trade_type = kwargs.get("trade_type")
         self._mode = kwargs.get("mode")
         self._backtest_id = kwargs.get("backtest_id")
@@ -146,24 +149,131 @@ class Asset(dict):
             ),
         )
 
+    def __insert_account_flow_item(self, **kwargs):
+        """
+        add record in account flow table
+        :param
+            subject: the item of account flow
+            amount: the amount of flow, the real amount * 100000000
+            position: the position of the flow
+            timestamp: the item of account flow
+
+        :return: None
+        """
+
+        if self._mode != MODE_BACKTEST:
+            raise RuntimeError("Only backtest mode can insert data into table. ")
+        validate(instance=kwargs, schema=account_flow_input)
+        conn = Conn(self._db_name)
+        conn.insert(
+            """
+            INSERT INTO {} (symbol, exchange, backtest_id, subject, amount,
+            position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """.format(self._account_flow_table_name),
+            (
+                self._symbol, self._exchange, self._backtest_id,
+                kwargs.get("subject"), kwargs.get("amount"), kwargs.get("position"),
+                kwargs.get("timestamp"), kwargs.get("datetime"),
+            ),
+        )
+
+    def __invest(self, amount: int, position: float, timestamp: int, datetime: str):
+        if amount <= 0 or position < 0.0:
+            raise RuntimeError("invest func param error. amount <= 0 and position < 0.0. ")
+
+        return self.__insert_account_flow_item(
+            subject=SUBJECT_INVEST,
+            amount=amount,
+            position=position,
+            timestamp=timestamp,
+            datetime=datetime,
+        )
+
+    def __settle(self, amount: int, position: float, timestamp: int, datetime: str):
+        if position != 0.0:
+            raise RuntimeError("settle func param error. position == 0.0")
+
+        return self.__insert_account_flow_item(
+            subject=SUBJECT_SETTLE,
+            amount=amount,
+            position=position,
+            timestamp=timestamp,
+            datetime=datetime,
+        )
+
+    def __transfer_in(self, amount: int, position: float, timestamp: int, datetime: str):
+        if amount <= 0 or position < 0.0:
+            raise RuntimeError("transfer_in func param error. amount > 0 and position >= 0. ")
+
+        return self.__insert_account_flow_item(
+            subject=SUBJECT_TRANSFER_IN,
+            amount=amount,
+            position=position,
+            timestamp=timestamp,
+            datetime=datetime,
+        )
+
+    def __transfer_out(self, amount: int, position: float, timestamp: int, datetime: str):
+        if amount >= 0 or position > 0.0:
+            raise RuntimeError("transfer_out func param error. amount < 0 and position <= 0.0. ")
+
+        return self.__insert_account_flow_item(
+            subject=SUBJECT_TRANSFER_OUT,
+            amount=amount,
+            position=position,
+            timestamp=timestamp,
+            datetime=datetime,
+        )
+
+    def __freeze(self, amount: int, position: float, timestamp: int, datetime: str):
+        if amount >= 0 or position > 0.0:
+            raise RuntimeError("freeze func param error. amount < 0 and position < 0.0. ")
+
+        return self.__insert_account_flow_item(
+            subject=SUBJECT_FREEZE,
+            amount=amount,
+            position=position,
+            timestamp=timestamp,
+            datetime=datetime,
+        )
+
+    def __unfreeze(self, amount: int, position: float, timestamp: int, datetime: str):
+        if amount <= 0 or position < 0.0:
+            raise RuntimeError("unfreeze func param error. amount > 0 and position > 0.0. ")
+
+        return self.__insert_account_flow_item(
+            subject=SUBJECT_UNFREEZE,
+            amount=amount,
+            position=position,
+            timestamp=timestamp,
+            datetime=datetime,
+        )
+
     # 账单小计
     def __add_asset_item(self, timestamp, datetime):
 
         conn = Conn(self._db_name)
-        position = conn.query_one(
+        result = conn.query_one(
             """
-            SELECT SUM(position) AS position FROM {}
-            WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ?
+            SELECT SUM(position) AS position, SUM(amount)/100000000 AS amount FROM {} WHERE symbol = ? AND exchange = ?
+             AND backtest_id = ? AND timestamp <= ? AND subject IN (?, ?, ?)
             """.format(self._account_flow_table_name),
             (
-                self._symbol, self._exchange, self._backtest_id, timestamp,
+                self._symbol,
+                self._exchange,
+                self._backtest_id,
+                timestamp,
+                SUBJECT_INVEST,
+                SUBJECT_DIVEST,
+                SUBJECT_SETTLE,
             )
-        )["position"]
-        amount = conn.query_one(
+        )
+        total_position, total_asset = result["position"], result["amount"]
+
+        result = conn.query_one(
             """
-            SELECT SUM(amount)/100000000 AS amount FROM {} 
-            WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ?
-            AND subject NOT IN (?, ?)
+            SELECT SUM(amount)/100000000 AS sub_freeze_asset, SUM(position) AS sub_freeze_position FROM {} 
+            WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ? AND subject IN (?, ?)
             """.format(self._account_flow_table_name),
             (
                 self._symbol,
@@ -173,8 +283,27 @@ class Asset(dict):
                 SUBJECT_FREEZE,
                 SUBJECT_UNFREEZE,
             ),
-        )["amount"]
+        )
+        sub_freeze_position = -(result.get("sub_freeze_position") or 0.0)
+        sub_freeze_asset = -(result.get("sub_freeze_asset") or 0.0)
 
+        result = conn.query_one(
+            """
+            SELECT SUM(amount)/100000000 AS sub_asset, SUM(position) AS sub_position FROM {} 
+            WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp <= ? AND subject IN (?, ?, ?)
+            """.format(self._account_flow_table_name),
+            (
+                self._symbol,
+                self._exchange,
+                self._backtest_id,
+                timestamp,
+                SUBJECT_TRANSFER_IN,
+                SUBJECT_TRANSFER_OUT,
+                SUBJECT_SETTLE,
+            ),
+        )
+
+        sub_asset, sub_position = result["sub_asset"], result["sub_position"]
         one = conn.query_one(
             """SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND timestamp = ? AND backtest_id = ?""".format(
                 self._asset_table_name,
@@ -190,7 +319,17 @@ class Asset(dict):
                 WHERE symbol = ? AND exchange = ? AND backtest_id = ? AND timestamp = ? 
                 """.format(self._asset_table_name),
                 (
-                    amount, 0, 0, 0, 0, position, datetime, self._symbol, self._exchange, self._backtest_id, timestamp,
+                    total_asset,
+                    sub_asset,
+                    sub_freeze_asset,
+                    total_position,
+                    sub_position,
+                    sub_freeze_position,
+                    datetime,
+                    self._symbol,
+                    self._exchange,
+                    self._backtest_id,
+                    timestamp,
                 ),
             )
         else:
@@ -201,10 +340,21 @@ class Asset(dict):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """.format(self._asset_table_name),
                 (
-                    self._symbol, self._exchange, self._backtest_id, amount, 0, 0, 0, 0, position, timestamp, datetime,
+                    self._symbol,
+                    self._exchange,
+                    self._backtest_id,
+                    total_asset,
+                    sub_asset,
+                    sub_freeze_asset,
+                    total_position,
+                    sub_position,
+                    sub_freeze_position,
+                    timestamp,
+                    datetime,
                 ),
             )
 
+        # 更新之后的资产信息。
         one = conn.query_one(
             """SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND timestamp > ? AND backtest_id = ?
              ORDER BY timestamp LIMIT 1""".format(
@@ -245,10 +395,45 @@ class Asset(dict):
             m.format("YYYY-MM-DD HH:mm:ss"),
         )
 
+    # 回测是初始化账户，主要是注资，设置总position
+    def first_invest(self, total_asset: float, total_position: float, sub_position: float) -> None:
+        m = moment.get(BIRTHDAY_BTC).to("Asia/Shanghai")
+        conn = Conn(self._db_name)
+        one = conn.query_one(
+            "SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND subject = ? AND timestamp <= ?"
+            " AND backtest_id = ? LIMIT 1".format(self._account_flow_table_name),
+            (
+                self._symbol,
+                self._exchange,
+                SUBJECT_INVEST,
+                m.millisecond_timestamp,
+                self._backtest_id,
+            ),
+        )
+        if one:
+            return
+
+        self.__invest(
+            standard_number(total_asset),
+            total_position,
+            m.millisecond_timestamp,
+            m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+        self.__transfer_in(
+            standard_number(total_asset * sub_position / total_position),
+            sub_position,
+            m.millisecond_timestamp,
+            m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+        self.__add_asset_item(
+            m.millisecond_timestamp,
+            m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+
     def freeze(self, amount: float, position: float, timestamp: int) -> None:
         if amount >= 0.0 or position <= 0.0:
             raise RuntimeError("the freeze input param error")
-        m = moment.get(timestamp)
+        m = moment.get(timestamp).to("Asia/Shanghai")
         self.__add_account_flow_item(
             subject=SUBJECT_FREEZE,
             amount=amount,
@@ -264,7 +449,7 @@ class Asset(dict):
     def unfreeze(self, amount: float, position: float, timestamp: int) -> None:
         if amount <= 0 or position >= 0:
             raise RuntimeError("the unfreeze input param error")
-        m = moment.get(timestamp)
+        m = moment.get(timestamp).to("Asia/Shanghai")
         self.__add_account_flow_item(
             subject=SUBJECT_UNFREEZE,
             amount=amount,
@@ -274,7 +459,7 @@ class Asset(dict):
         )
 
     def income(self, amount: float, timestamp: int) -> None:
-        m = moment.get(timestamp)
+        m = moment.get(timestamp).to("Asia/Shanghai")
         self.__add_account_flow_item(
             subject=SUBJECT_INCOME,
             amount=amount,
@@ -282,10 +467,47 @@ class Asset(dict):
             timestamp=timestamp,
             datetime=m.format("YYYY-MM-DD HH:mm:ss"),
         )
-        self.__add_asset_item(
+        self.__add_asset_item(m.millisecond_timestamp, m.format("YYYY-MM-DD HH:mm:ss"))
+
+    def ffreeze(
+            self,
+            amount: float,
+            position: float,
+            timestamp: int,
+    ) -> None:
+        m = moment.get(timestamp).to("Asia/Shanghai")
+        self.__freeze(
+            -standard_number(amount),
+            -position,
             m.millisecond_timestamp,
             m.format("YYYY-MM-DD HH:mm:ss"),
         )
+        return self.__add_asset_item(m.millisecond_timestamp, m.format("YYYY-MM-DD HH:mm:ss"))
+
+    def unfreeze_and_settle(
+            self,
+            unfreeze_asset: float,
+            unfreeze_position: float,
+            settle_asset: float,
+            timestamp: int,
+    ) -> None:
+        m = moment.get(timestamp).to("Asia/Shanghai")
+
+        self.__unfreeze(
+            standard_number(unfreeze_asset),
+            unfreeze_position,
+            m.millisecond_timestamp,
+            m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+
+        self.__settle(
+            standard_number(settle_asset),
+            0.0,
+            m.millisecond_timestamp,
+            m.format("YYYY-MM-DD HH:mm:ss"),
+        )
+
+        return self.__add_asset_item(m.millisecond_timestamp, m.format("YYYY-MM-DD HH:mm:ss"))
 
     def calculate_income(self, instance_id: int, unit_amount: int, standard: bool = True) -> float:
         conn = Conn(self._db_name)
@@ -370,6 +592,7 @@ class Asset(dict):
         result = conn.query_one(sql, params)
         if result is None:
             raise RuntimeError("you must init_amount before load the asset. ")
+
         self["total_asset"] = result["total_asset"]
         self["sub_asset"] = result["sub_asset"]
         self["sub_freeze_asset"] = result["sub_freeze_asset"]

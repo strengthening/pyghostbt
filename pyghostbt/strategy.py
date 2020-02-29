@@ -1,4 +1,5 @@
 from typing import List
+from typing import Tuple
 from jsonschema import validate
 
 from pyanalysis.mysql import Conn
@@ -9,6 +10,7 @@ from pyghostbt.tool.indices import Indices
 from pyghostbt.tool.param import Param
 from pyghostbt.tool.order import FutureOrder
 from pyghostbt.util import get_contract_type
+from pyghostbt.util import real_number
 from pyghostbt.const import *
 
 strategy_input = {
@@ -475,7 +477,10 @@ class Strategy(Runtime):
         opened_times = 0
         start_sequence = orders[-1]["sequence"] + 1
         opening_amounts, opening_sums = {due_ts: 0}, {due_ts: 0}
+
         for order in orders:
+            if order.get("status") == ORDER_STATUS_FAIL:
+                continue
             order_due_ts = order["due_timestamp"]
             if order_due_ts not in opening_amounts:
                 opening_amounts[order_due_ts] = 0
@@ -503,6 +508,74 @@ class Strategy(Runtime):
             opening_amounts,
             opening_sums,
         )
+
+    def _settle_pnl(self) -> Tuple[bool, float]:
+        conn = Conn(self["db_name"])
+        orders = conn.query(
+            "SELECT * FROM {trade_type}_order_{mode} WHERE instance_id = ?"
+            " ORDER BY sequence".format(trade_type=self["trade_type"], mode=self["mode"]),
+            (self["id"])
+        )
+
+        settle_pnl, total_fee, open_amount, liquidate_amount = 0.0, 0.0, 0, 0
+        contract_kv = {}
+
+        for order in orders:
+            if order["status"] == ORDER_STATUS_FAIL:
+                continue
+            avg_price = real_number(order["avg_price"])
+            total_fee += order["fee"]
+            if order["due_timestamp"] not in contract_kv:
+                contract_kv[order["due_timestamp"]] = {
+                    "open_amount": 0,
+                    "open_sum": 0,
+                    "open_avg_price": 0.0,
+                    "liquidate_amount": 0,
+                    "liquidate_sum": 0,
+                    "liquidate_avg_price": 0.0,
+                }
+
+            if order["type"] == ORDER_TYPE_OPEN_LONG:
+                open_amount += order["deal_amount"]
+                contract = contract_kv[order["due_timestamp"]]
+                contract["open_amount"] += order["deal_amount"]
+                contract["open_sum"] -= order["deal_amount"] * avg_price
+                contract["open_avg_price"] = -contract["open_sum"] / contract["open_amount"]
+            elif order["type"] == ORDER_TYPE_OPEN_SHORT:
+                open_amount += order["deal_amount"]
+                contract = contract_kv[order["due_timestamp"]]
+                contract["open_amount"] += order["deal_amount"]
+                contract["open_sum"] += order["deal_amount"] * avg_price
+                contract["open_avg_price"] = contract["open_sum"] / contract["open_amount"]
+            elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
+                liquidate_amount += order["deal_amount"]
+                contract = contract_kv[order["due_timestamp"]]
+                contract["liquidate_amount"] += order["deal_amount"]
+                contract["liquidate_sum"] += order["deal_amount"] * avg_price
+                contract["liquidate_avg_price"] = contract["liquidate_sum"] / contract["liquidate_amount"]
+            elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
+                liquidate_amount += order["deal_amount"]
+                contract = contract_kv[order["due_timestamp"]]
+                contract["liquidate_amount"] += order["deal_amount"]
+                contract["liquidate_sum"] -= order["deal_amount"] * avg_price
+                contract["liquidate_avg_price"] = -contract["liquidate_sum"] / contract["liquidate_amount"]
+            else:
+                raise RuntimeError("the order type is not right. ")
+
+        # 计算各个contract的盈利损失情况。
+        for due_timestamp in contract_kv:
+            contract = contract_kv[due_timestamp]
+            if contract["open_amount"] != contract["liquidate_amount"]:
+                return False, 0.0
+            contract_income = (contract["open_sum"] + contract["liquidate_sum"]) * self["unit_amount"]
+            contract_income = contract_income / contract["open_avg_price"]
+            contract_income = contract_income / contract["liquidate_avg_price"]
+            settle_pnl += contract_income
+
+        if open_amount != liquidate_amount:
+            return False, 0.0
+
+        return True, total_fee + settle_pnl
 
     def _cp_instance_and_gen_order(
             self,

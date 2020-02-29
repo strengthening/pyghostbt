@@ -52,6 +52,9 @@ INDICES_TYPE_STRING = "string"
 INDICES_TYPE_INTEGER = "integer"
 INDICES_TYPE_FLOAT = "float"
 
+SUBJECT_INVEST = "invest"
+SUBJECT_DIVEST = "divest"
+SUBJECT_SETTLE = "settle"
 SUBJECT_INJECTION = "injection"  # 注资，amount为正， position 为0，计算子账户资产时需要剔除。
 SUBJECT_DIVIDEND = "dividend"  # 分红，amount为负， position 为0，计算子账户资产时需要剔除，也就是说分红仅从总账户中提取。
 SUBJECT_FREEZE = "freeze"  # 冻结，amount为负， position 为正
@@ -67,6 +70,14 @@ ORDER_TYPE_OPEN_LONG = 1
 ORDER_TYPE_OPEN_SHORT = 2
 ORDER_TYPE_LIQUIDATE_LONG = 3
 ORDER_TYPE_LIQUIDATE_SHORT = 4
+
+ORDER_STATUS_UNFINISH = 0
+ORDER_STATUS_PART_FINISH = 1
+ORDER_STATUS_FINISH = 2
+ORDER_STATUS_CANCEL = 3
+ORDER_STATUS_REJECT = 4
+ORDER_STATUS_CANCEL_ING = 5
+ORDER_STATUS_FAIL = 6
 
 ORDER_PLACE_TYPE_T_MAKER = "t_maker"
 ORDER_PLACE_TYPE_B_MAKER = "b_maker"

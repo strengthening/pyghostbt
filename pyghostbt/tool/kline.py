@@ -71,7 +71,7 @@ class Kline(object):
             self,
             start_timestamp: int,
             finish_timestamp: int,
-            interval: int,
+            interval: str,
             standard: bool = False,
     ) -> list:
         conn = Conn(self.db_name)

@@ -83,7 +83,7 @@ class Indices(dict):
     ):
         if isinstance(close, list):
             close = np.array(close)
-        return talib.MACD(close, fast_period, slow_period, signal_period)
+        return talib.MACD(close, fastperiod=fast_period, slowperiod=slow_period, signalperiod=signal_period)
 
     @staticmethod
     def FORCE(candles):

@@ -74,26 +74,16 @@ class Kline(object):
             interval: str,
             standard: bool = False,
     ) -> list:
-        conn = Conn(self.db_name)
-        params = (self.symbol, self.exchange, interval, start_timestamp, finish_timestamp)
-        if self.trade_type == TRADE_TYPE_FUTURE:
-            params = (self.symbol, self.exchange, self.contract_type, interval, start_timestamp, finish_timestamp)
-
-        candles = conn.query(self.sql, params)
+        candles = self.query_range(start_timestamp, finish_timestamp, interval, standard=standard)
         if standard:
-            std_candles = []
-            while candles:
-                raw_candle = candles.pop(0)
-                std_candles.append(self.__standard_candle(raw_candle))
-            return std_candles
-
-        return candles
+            return [self.__standard_candle(c) for c in candles]
+        return [c for c in candles]
 
     def query_by_group(
             self,
             start_timestamp: int,
             finish_timestamp: int,
-            interval: int,
+            interval: str,
             standard: bool = False,
     ):
         if interval == KLINE_INTERVAL_1MIN:

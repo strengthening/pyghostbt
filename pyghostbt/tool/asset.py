@@ -366,35 +366,6 @@ class Asset(dict):
         if one:
             self.__add_asset_item(one["timestamp"], one["datetime"])
 
-    # 回测是初始化账户，主要是注资
-    def init_account(self, amount: float) -> None:
-        m = moment.get(BIRTHDAY_BTC)
-        conn = Conn(self._db_name)
-        one = conn.query_one(
-            "SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND subject = ? AND timestamp = ?"
-            " AND backtest_id = ? LIMIT 1".format(self._account_flow_table_name),
-            (
-                self._symbol,
-                self._exchange,
-                SUBJECT_INJECTION,
-                m.millisecond_timestamp,
-                self._backtest_id,
-            ),
-        )
-        if one:
-            return
-        self.__add_account_flow_item(
-            subject=SUBJECT_INJECTION,
-            amount=amount,
-            position=0,
-            timestamp=m.millisecond_timestamp,
-            datetime=m.format("YYYY-MM-DD HH:mm:ss"),
-        )
-        self.__add_asset_item(
-            m.millisecond_timestamp,
-            m.format("YYYY-MM-DD HH:mm:ss"),
-        )
-
     # 回测是初始化账户，主要是注资，设置总position
     def first_invest(self, total_asset: float, total_position: float, sub_position: float) -> None:
         m = moment.get(BIRTHDAY_BTC).to("Asia/Shanghai")
@@ -442,17 +413,6 @@ class Asset(dict):
             datetime=m.format("YYYY-MM-DD HH:mm:ss"),
         )
 
-    def income(self, amount: float, timestamp: int) -> None:
-        m = moment.get(timestamp).to("Asia/Shanghai")
-        self.__add_account_flow_item(
-            subject=SUBJECT_INCOME,
-            amount=amount,
-            position=0,
-            timestamp=timestamp,
-            datetime=m.format("YYYY-MM-DD HH:mm:ss"),
-        )
-        self.__add_asset_item(m.millisecond_timestamp, m.format("YYYY-MM-DD HH:mm:ss"))
-
     def freeze(
             self,
             amount: float,
@@ -492,72 +452,6 @@ class Asset(dict):
         )
 
         return self.__add_asset_item(m.millisecond_timestamp, m.format("YYYY-MM-DD HH:mm:ss"))
-
-    def calculate_income(self, instance_id: int, unit_amount: int, standard: bool = True) -> float:
-        conn = Conn(self._db_name)
-        orders = conn.query(
-            "SELECT * FROM {trade_type}_order_backtest "
-            "WHERE instance_id = ? ORDER BY sequence".format(trade_type="future"),
-            (instance_id,),
-        )
-
-        total_income, total_fee, open_amount, liquidate_amount = 0.0, 0.0, 0, 0
-        contract_kv = {}
-
-        for order in orders:
-            avg_price = order["avg_price"]
-            if standard:
-                avg_price = real_number(avg_price)
-            total_fee += order["fee"]
-            if order["due_timestamp"] not in contract_kv:
-                contract_kv[order["due_timestamp"]] = {
-                    "open_amount": 0,
-                    "open_sum": 0,
-                    "open_avg_price": 0.0,
-                    "liquidate_amount": 0,
-                    "liquidate_sum": 0,
-                    "liquidate_avg_price": 0.0,
-                }
-
-            if order["type"] == ORDER_TYPE_OPEN_LONG:
-                open_amount += order["deal_amount"]
-                contract = contract_kv[order["due_timestamp"]]
-                contract["open_amount"] += order["deal_amount"]
-                contract["open_sum"] -= order["deal_amount"] * avg_price
-                contract["open_avg_price"] = -contract["open_sum"] / contract["open_amount"]
-            elif order["type"] == ORDER_TYPE_OPEN_SHORT:
-                open_amount += order["deal_amount"]
-                contract = contract_kv[order["due_timestamp"]]
-                contract["open_amount"] += order["deal_amount"]
-                contract["open_sum"] += order["deal_amount"] * avg_price
-                contract["open_avg_price"] = contract["open_sum"] / contract["open_amount"]
-            elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
-                liquidate_amount += order["deal_amount"]
-                contract = contract_kv[order["due_timestamp"]]
-                contract["liquidate_amount"] += order["deal_amount"]
-                contract["liquidate_sum"] += order["deal_amount"] * avg_price
-                contract["liquidate_avg_price"] = contract["liquidate_sum"] / contract["liquidate_amount"]
-            elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
-                liquidate_amount += order["deal_amount"]
-                contract = contract_kv[order["due_timestamp"]]
-                contract["liquidate_amount"] += order["deal_amount"]
-                contract["liquidate_sum"] -= order["deal_amount"] * avg_price
-                contract["liquidate_avg_price"] = -contract["liquidate_sum"] / contract["liquidate_amount"]
-            else:
-                raise RuntimeError("the order type is not right. ")
-
-        # 计算各个contract的盈利损失情况。
-        for due_timestamp in contract_kv:
-            contract = contract_kv[due_timestamp]
-            if contract["open_amount"] != contract["liquidate_amount"]:
-                raise RuntimeError("The open amount not equal liquidate amount. ")
-            contract_income = (contract["open_sum"] + contract["liquidate_sum"]) * unit_amount
-            contract_income = contract_income / contract["open_avg_price"]
-            contract_income = contract_income / contract["liquidate_avg_price"]
-            total_income += contract_income
-        if open_amount != liquidate_amount:
-            raise RuntimeError("The open amount not equal liquidate amount. ")
-        return total_fee + total_income
 
     def load(self, timestamp: int) -> dict:
         sql = """

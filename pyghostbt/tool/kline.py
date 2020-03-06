@@ -75,8 +75,6 @@ class Kline(object):
             standard: bool = False,
     ) -> list:
         candles = self.query_range(start_timestamp, finish_timestamp, interval, standard=standard)
-        if standard:
-            return [self.__standard_candle(c) for c in candles]
         return [c for c in candles]
 
     def query_by_group(

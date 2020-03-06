@@ -430,22 +430,6 @@ class Asset(dict):
             m.format("YYYY-MM-DD HH:mm:ss"),
         )
 
-    def freeze(self, amount: float, position: float, timestamp: int) -> None:
-        if amount >= 0.0 or position <= 0.0:
-            raise RuntimeError("the freeze input param error")
-        m = moment.get(timestamp).to("Asia/Shanghai")
-        self.__add_account_flow_item(
-            subject=SUBJECT_FREEZE,
-            amount=amount,
-            position=position,
-            timestamp=timestamp,
-            datetime=m.format("YYYY-MM-DD HH:mm:ss"),
-        )
-        self.__add_asset_item(
-            m.millisecond_timestamp,
-            m.format("YYYY-MM-DD HH:mm:ss"),
-        )
-
     def unfreeze(self, amount: float, position: float, timestamp: int) -> None:
         if amount <= 0 or position >= 0:
             raise RuntimeError("the unfreeze input param error")
@@ -469,7 +453,7 @@ class Asset(dict):
         )
         self.__add_asset_item(m.millisecond_timestamp, m.format("YYYY-MM-DD HH:mm:ss"))
 
-    def ffreeze(
+    def freeze(
             self,
             amount: float,
             position: float,

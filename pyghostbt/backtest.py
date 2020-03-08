@@ -322,7 +322,7 @@ class Backtest(Strategy):
         # instance 没触发
         return {}
 
-    def save(self) -> None:
+    def save(self, slippage=0.01, fee=-0.0005) -> None:
         self.check_instance(self)
         conn = Conn(self["db_name"])
         one = conn.query_one(
@@ -361,7 +361,7 @@ class Backtest(Strategy):
         )
 
         order: FutureOrder = self["order"]
-        order.deal()
+        order.deal(slippage=slippage, fee=fee)
         order.save(
             check=True,
             raw_order_data=json.dumps(self),

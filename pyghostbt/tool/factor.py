@@ -57,11 +57,11 @@ class Factor(object):
 
     def get_value(self, fact_name: str, timestamp: int) -> float:
         meta = self.get_metadata(fact_name)
-        return self._value_by_id(meta["id"], timestamp)
+        return self._value_by_id(meta["factor_id"], timestamp)
 
     def get_values(self, fact_name: str, start_timestamp: int, finish_timestamp: int) -> List[float]:
         meta = self.get_metadata(fact_name)
-        return self._values_by_id(meta["id"], start_timestamp, finish_timestamp)
+        return self._values_by_id(meta["factor_id"], start_timestamp, finish_timestamp)
 
     def get_by_id(self, fact_id: int, timestamp: int) -> float:
         return self._value_by_id(fact_id, timestamp)

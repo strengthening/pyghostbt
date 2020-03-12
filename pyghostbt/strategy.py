@@ -213,13 +213,17 @@ class Strategy(Runtime):
             trade_type=self["trade_type"],
             mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
         )
+
+        m = moment.get(timestamp).to("Asia/Shanghai").floor("day")
+
         query_sql = """
         SELECT id FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
-        AND status IN (?, ?, ?) ORDER BY open_start_timestamp, id
+        AND (status IN (?, ?, ?) OR ( status = ? AND liquidate_finish_timestamp > ? )) ORDER BY open_start_timestamp, id
         """
         params = (
             self["symbol"], self["exchange"], self["strategy"],
             INSTANCE_STATUS_OPENING, INSTANCE_STATUS_LIQUIDATING, INSTANCE_STATUS_ERROR,
+            INSTANCE_STATUS_FINISHED, m.millisecond_timestamp,
         )
 
         if self["mode"] == MODE_BACKTEST:

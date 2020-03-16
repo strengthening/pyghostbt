@@ -465,6 +465,16 @@ class Strategy(Runtime):
         self["indices"] = indices
 
     def _analysis_orders(self, due_ts: int) -> tuple:
+        """
+        :param due_ts: the due timestamp now.
+        :return:
+        start_sequence: next sequence
+        first order price
+        first order price
+        orders amount record
+        orders sum record
+        """
+
         conn = Conn(self["db_name"])
         orders = conn.query(
             "SELECT * FROM {trade_type}_order_{mode}"
@@ -476,7 +486,7 @@ class Strategy(Runtime):
         )
 
         if len(orders) == 0:
-            return ()
+            return -1, 0, 0, 0, {}, {}
 
         opened_times = 0
         start_sequence = orders[-1]["sequence"] + 1
@@ -485,6 +495,9 @@ class Strategy(Runtime):
         for order in orders:
             if order.get("status") == ORDER_STATUS_FAIL:
                 continue
+            if order.get("status") == ORDER_STATUS_UNFINISH:
+                return -1, 0, 0, 0, {}, {}
+
             order_due_ts = order["due_timestamp"]
             if order_due_ts not in opening_amounts:
                 opening_amounts[order_due_ts] = 0
@@ -504,14 +517,7 @@ class Strategy(Runtime):
             else:
                 raise RuntimeError("Not found the order type")
 
-        return (
-            start_sequence,
-            opened_times,
-            orders[0]["price"],
-            orders[0]["amount"],
-            opening_amounts,
-            opening_sums,
-        )
+        return start_sequence, opened_times, orders[0]["price"], orders[0]["amount"], opening_amounts, opening_sums
 
     def _settle_pnl(self) -> Tuple[bool, float]:
         conn = Conn(self["db_name"])

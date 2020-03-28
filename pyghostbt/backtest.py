@@ -114,6 +114,7 @@ class Backtest(Strategy):
         """
         单个蜡烛和数据交易逻辑比较
         """
+
         order = instance["order"]
         if order["place_type"] == ORDER_PLACE_TYPE_T_TAKER:
             if candle["high"] > order["price"]:

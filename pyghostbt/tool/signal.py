@@ -33,6 +33,8 @@ signal_input = {
 
 
 class Signal(object):
+    __cache = {}
+
     def __init__(self, **kwargs):
         validate(instance=kwargs, schema=signal_input)
         self._symbol = kwargs.get("symbol")
@@ -41,11 +43,11 @@ class Signal(object):
         self._contract_type = kwargs.get("contract_type") or CONTRACT_TYPE_NONE
         self._db_name = kwargs.get("db_name", "default")
 
-        self.__cache = {}
+        # self.__cache = {}
 
     def get_metadata(self, signal_name: str) -> dict:
-        if signal_name in self.__cache:
-            return self.__cache[signal_name]
+        if signal_name in Signal.__cache:
+            return Signal.__cache[signal_name]
 
         conn = Conn(self._db_name)
         metadata = conn.query_one(
@@ -55,12 +57,12 @@ class Signal(object):
         )
         if metadata is None:
             raise RuntimeError("Can not find the meta in database. ")
-        self.__cache[signal_name] = metadata
+        Signal.__cache[signal_name] = metadata
         return metadata
 
     def in_signal(self, signal_name: str, timestamp: int) -> bool:
         meta = self.get_metadata(signal_name)
-        signal_id = meta["id"]
+        signal_id = meta["signal_id"]
 
         conn = Conn(self._db_name)
         dataset = conn.query_one(
@@ -71,7 +73,7 @@ class Signal(object):
         return not (dataset is None)
 
     def get_value(self, signal_name: str, timestamp: int) -> Dict:
-        signal_id = self.get_metadata(signal_name)["id"]
+        signal_id = self.get_metadata(signal_name)["signal_id"]
         return self._value_by_id(signal_id, timestamp)
 
     def _value_by_id(self, signal_id: int, timestamp: int):

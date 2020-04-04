@@ -494,7 +494,7 @@ class Strategy(Runtime):
 
         for order in orders:
             if order.get("status") == ORDER_STATUS_FAIL:
-                continue
+                return -1, 0, 0, 0, {}, {}
             if order.get("status") == ORDER_STATUS_UNFINISH:
                 return -1, 0, 0, 0, {}, {}
 

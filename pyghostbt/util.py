@@ -49,7 +49,7 @@ def real_number(std_num: float) -> float:
     Returns:
         The real value of the number.
     """
-    return std_num / 100000000
+    return float(std_num) / 100000000
 
 
 def get_o_or_l_price(

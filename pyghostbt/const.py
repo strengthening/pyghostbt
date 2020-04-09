@@ -32,6 +32,8 @@ TRADE_TYPE_SPOT = "spot"
 EXCHANGE_OKEX = "okex"
 EXCHANGE_HUOBI = "huobi"
 EXCHANGE_BINANCE = "binance"
+EXCHANGE_COINBASE = "coinbase"
+EXCHANGE_BITSTAMP = "bitstamp"
 
 CONTRACT_TYPE_THIS_WEEK = "this_week"
 CONTRACT_TYPE_NEXT_WEEK = "next_week"

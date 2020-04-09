@@ -18,7 +18,7 @@ kline_input = {
         },
         "exchange": {
             "type": "string",
-            "enum": [EXCHANGE_OKEX, EXCHANGE_HUOBI, EXCHANGE_BINANCE],
+            "enum": [EXCHANGE_OKEX, EXCHANGE_HUOBI, EXCHANGE_BINANCE, EXCHANGE_BITSTAMP, EXCHANGE_COINBASE],
         },
         "contract_type": {
             "type": "string",

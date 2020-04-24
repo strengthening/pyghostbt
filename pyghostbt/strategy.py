@@ -519,6 +519,65 @@ class Strategy(Runtime):
 
         return start_sequence, opened_times, orders[0]["price"], orders[0]["amount"], opening_amounts, opening_sums
 
+    def _analysis_orders1(self, due_ts: int) -> tuple:
+        """
+        :param due_ts: the due timestamp now.
+        :return:
+        start_sequence: next sequence
+        first order price
+        first order price
+        orders amount record
+        orders sum record
+        """
+
+        conn = Conn(self["db_name"])
+        orders = conn.query(
+            "SELECT * FROM {trade_type}_order_{mode}"
+            " WHERE instance_id = ? ORDER BY sequence".format(
+                trade_type=self["trade_type"],
+                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY
+            ),
+            (self["id"],),
+        )
+
+        if len(orders) == 0:
+            return -1, 0, 0, 0, {}, {}
+
+        opened_times = 0
+        start_sequence = orders[-1]["sequence"] + 1
+        opened_prices = []
+        opened_amounts = []
+        opening_amounts, opening_sums = {due_ts: 0}, {due_ts: 0}
+
+        for order in orders:
+            if order.get("status") == ORDER_STATUS_FAIL:
+                return -1, 0, 0, 0, {}, {}
+            if order.get("status") == ORDER_STATUS_UNFINISH:
+                return -1, 0, 0, 0, {}, {}
+
+            order_due_ts = order["due_timestamp"]
+            if order_due_ts not in opening_amounts:
+                opening_amounts[order_due_ts] = 0
+                opening_sums[order_due_ts] = 0
+
+            if order["type"] in (ORDER_TYPE_OPEN_LONG, ORDER_TYPE_OPEN_SHORT):
+                opening_amounts[order_due_ts] += order["deal_amount"]
+                opening_sums[order_due_ts] += order["deal_amount"] * order["avg_price"]
+                if order["place_type"] != ORDER_PLACE_TYPE_O_SWAP:
+                    opened_prices.append(order["price"])
+                    opened_amounts.append(order["amount"])
+                    opened_times += 1
+            elif order["type"] in (ORDER_TYPE_LIQUIDATE_LONG, ORDER_TYPE_LIQUIDATE_SHORT):
+                opening_amounts[order_due_ts] -= order["deal_amount"]
+                if opening_amounts[order_due_ts] == 0:
+                    opening_sums[order_due_ts] = 0
+                else:
+                    opening_sums[order_due_ts] -= order["deal_amount"] * order["avg_price"]
+            else:
+                raise RuntimeError("Not found the order type")
+
+        return start_sequence, opened_times, opened_prices, opened_amounts, opening_amounts, opening_sums
+
     def _settle_pnl(self) -> Tuple[bool, float]:
         conn = Conn(self["db_name"])
         orders = conn.query(

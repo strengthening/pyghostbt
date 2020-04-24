@@ -55,13 +55,21 @@ class Factor(object):
             raise RuntimeError("Can not find the meta in database. ")
         return metadata
 
-    def get_value(self, fact_name: str, timestamp: int) -> float:
-        meta = self.get_metadata(fact_name)
+    def get_value(self, factor_name: str, timestamp: int) -> float:
+        meta = self.get_metadata(factor_name)
         return self._value_by_id(meta["factor_id"], timestamp)
 
-    def get_values(self, fact_name: str, start_timestamp: int, finish_timestamp: int) -> List[float]:
-        meta = self.get_metadata(fact_name)
+    def get_values(self, factor_name: str, start_timestamp: int, finish_timestamp: int) -> List[float]:
+        meta = self.get_metadata(factor_name)
         return self._values_by_id(meta["factor_id"], start_timestamp, finish_timestamp)
+
+    def get_max_values(self, factor_name: str, start_timestamp: int, finish_timestamp: int, limit: int) -> List[float]:
+        meta = self.get_metadata(factor_name)
+        return self._values_by_sequence(meta["factor_id"], start_timestamp, finish_timestamp, limit, True)
+
+    def get_min_values(self, factor_name: str, start_timestamp: int, finish_timestamp: int, limit: int) -> List[float]:
+        meta = self.get_metadata(factor_name)
+        return self._values_by_sequence(meta["factor_id"], start_timestamp, finish_timestamp, limit, False)
 
     def get_by_id(self, fact_id: int, timestamp: int) -> float:
         return self._value_by_id(fact_id, timestamp)
@@ -83,6 +91,26 @@ class Factor(object):
         fact_values = conn.query(
             "SELECT factor_value FROM factor_dataset"
             " WHERE factor_id = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp",
+            (fact_id, start_timestamp, finish_timestamp),
+        )
+
+        return [f["factor_value"] for f in fact_values]
+
+    def _values_by_sequence(
+            self,
+            fact_id: int,
+            start_timestamp: int,
+            finish_timestamp: int,
+            limit: int,
+            is_desc: bool,
+    ) -> List[float]:
+        conn = Conn(self._db_name)
+        fact_values = conn.query(
+            "SELECT factor_value FROM factor_dataset"
+            " WHERE factor_id = ? AND timestamp >= ? AND timestamp <= ? ORDER BY factor_value {} LIMIT {}".format(
+                "DESC" if is_desc else "",
+                limit,
+            ),
             (fact_id, start_timestamp, finish_timestamp),
         )
 

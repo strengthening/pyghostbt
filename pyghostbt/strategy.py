@@ -523,11 +523,14 @@ class Strategy(Runtime):
         """
         :param due_ts: the due timestamp now.
         :return:
-        start_sequence: next sequence
-        first order price
-        first order price
-        orders amount record
-        orders sum record
+
+            start_sequence: next sequence
+            opening_avg_price: the opening avg price in instance.
+            order price array: the orders price of instance.
+            order amount array: the orders amount of instance.
+            opening_amount map with due_ts: {due_ts: opening_amount}
+            opening_quota map with due_ts: {due_ts: opening_quota}
+
         """
 
         conn = Conn(self["db_name"])
@@ -544,10 +547,11 @@ class Strategy(Runtime):
             return -1, 0, 0, 0, {}, {}
 
         opened_times = 0
+        opened_quota = 0
         start_sequence = orders[-1]["sequence"] + 1
         opened_prices = []
         opened_amounts = []
-        opening_amounts, opening_sums = {due_ts: 0}, {due_ts: 0}
+        opening_amounts, opening_quota = {due_ts: 0}, {due_ts: 0}
 
         for order in orders:
             if order.get("status") == ORDER_STATUS_FAIL:
@@ -558,25 +562,27 @@ class Strategy(Runtime):
             order_due_ts = order["due_timestamp"]
             if order_due_ts not in opening_amounts:
                 opening_amounts[order_due_ts] = 0
-                opening_sums[order_due_ts] = 0
+                opening_quota[order_due_ts] = 0
 
             if order["type"] in (ORDER_TYPE_OPEN_LONG, ORDER_TYPE_OPEN_SHORT):
                 opening_amounts[order_due_ts] += order["deal_amount"]
-                opening_sums[order_due_ts] += order["deal_amount"] * order["avg_price"]
+                opening_quota[order_due_ts] += order["deal_amount"] * order["avg_price"]
+                opened_quota += order["deal_amount"] * order["avg_price"]
                 if order["place_type"] != ORDER_PLACE_TYPE_O_SWAP:
                     opened_prices.append(order["price"])
                     opened_amounts.append(order["amount"])
                     opened_times += 1
             elif order["type"] in (ORDER_TYPE_LIQUIDATE_LONG, ORDER_TYPE_LIQUIDATE_SHORT):
                 opening_amounts[order_due_ts] -= order["deal_amount"]
+                opened_quota -= order["deal_amount"] * order["avg_price"]
                 if opening_amounts[order_due_ts] == 0:
-                    opening_sums[order_due_ts] = 0
+                    opening_quota[order_due_ts] = 0
                 else:
-                    opening_sums[order_due_ts] -= order["deal_amount"] * order["avg_price"]
+                    opening_quota[order_due_ts] -= order["deal_amount"] * order["avg_price"]
             else:
                 raise RuntimeError("Not found the order type")
-
-        return start_sequence, opened_times, opened_prices, opened_amounts, opening_amounts, opening_sums
+        opening_avg_price = opened_quota / sum([opening_amounts[ts] for ts in opening_amounts])
+        return start_sequence, opened_times, opening_avg_price, opened_prices, opened_amounts, opening_amounts, opening_quota
 
     def _settle_pnl(self) -> Tuple[bool, float]:
         conn = Conn(self["db_name"])
@@ -682,3 +688,37 @@ class Strategy(Runtime):
             mode=self["mode"],
         )
         return instance
+
+    def _get_previous_instances(self, start_timestamp=0, finish_timestamp=0):
+        if start_timestamp == 0:
+            raise RuntimeError("start_timestamp must bigger than 0. ")
+
+        if finish_timestamp == 0:
+            finish_timestamp = moment.now().millisecond_timestamp
+
+        conn = Conn(self["db_name"])
+        table_name = "{trade_type}_instance_{mode}".format(
+            trade_type=self["trade_type"],
+            mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+        )
+
+        query_sql = """
+        SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND contract_type = ? AND strategy = ?
+         AND wait_start_timestamp >= ? AND wait_start_timestamp < ? AND status != ?""".format(table_name)
+        query_param = (
+            self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
+            start_timestamp, finish_timestamp, INSTANCE_STATUS_WAITING,
+        )
+
+        if self["mode"] == MODE_BACKTEST:
+            query_sql = """
+                    SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND contract_type = ?
+                    AND strategy = ? AND wait_start_timestamp >= ? AND wait_start_timestamp < ?
+                    AND backtest_id = ? AND status != ?""".format(table_name)
+
+            query_param = (
+                self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
+                start_timestamp, finish_timestamp, self["backtest_id"], INSTANCE_STATUS_WAITING,
+            )
+
+        return conn.query(query_sql, query_param)

@@ -1,5 +1,6 @@
 from pyghostbt.tool.kline import Kline
 from pyghostbt.tool.factor import Factor
+from pyghostbt.tool.signal import Signal
 from pyghostbt.util import uuid
 from pyghostbt.const import *
 from jsonschema import validate
@@ -85,6 +86,14 @@ class Runtime(dict):
         self._factor = Factor(
             trade_type=self.get("trade_type"),
             symbol=self.get("symbol"),
+            contract_type=self.get("contract_type"),
+            db_name=self.get("db_name_kline") or self.get("db_name"),
+        )
+
+        self._signal = Signal(
+            trade_type=self.get("trade_type"),
+            symbol=self.get("symbol"),
+            exchange=self.get("exchange"),
             contract_type=self.get("contract_type"),
             db_name=self.get("db_name_kline") or self.get("db_name"),
         )

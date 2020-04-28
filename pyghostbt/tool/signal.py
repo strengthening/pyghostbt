@@ -79,7 +79,7 @@ class Signal(object):
     def _value_by_id(self, signal_id: int, timestamp: int):
         conn = Conn(self._db_name)
         dataset = conn.query_one(
-            "SELECT * FROM signal_dataset WHERE signal_id = ? AND start_timestamp >= ? AND finish_timestamp < ?"
+            "SELECT * FROM signal_dataset WHERE signal_id = ? AND start_timestamp <= ? AND finish_timestamp > ?"
             " ORDER BY start_timestamp DESC LIMIT 1",
             (signal_id, timestamp, timestamp),
         )

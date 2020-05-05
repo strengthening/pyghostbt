@@ -48,7 +48,7 @@ order_config = {
 }
 
 
-class Order(dict):
+class CommonOrder(dict):
     __TABLE_NAME_FORMAT__ = "{trade_type}_order_{mode}"
 
     def __init__(self, order, **kwargs):
@@ -62,6 +62,147 @@ class Order(dict):
         self._table_name = self.__TABLE_NAME_FORMAT__.format(
             trade_type=self._trade_type,
             mode=MODE_BACKTEST if self._mode == MODE_BACKTEST else MODE_STRATEGY,
+        )
+
+    # 假设已经成交
+    def deal(self, slippage=0.01, fee=-0.0005, settle_mode=SETTLE_MODE_BASIS):
+        """
+        update the order dict with slippage, fee at diff settle mode.
+        :param slippage: 滑点比例，默认1%
+        :param fee:      手续费比例，默认万5
+        :param settle_mode: 结算模式，SETTLE_MODE_BASIS/SETTLE_MODE_COUNTER
+        :return:
+        """
+
+        self["deal_amount"] = self["amount"]
+        self["status"] = ORDER_STATUS_FINISH
+
+        # 计算 avg_price
+        if self["type"] == ORDER_TYPE_OPEN_LONG or self["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
+            self["avg_price"] = int(self["price"] * (1 + abs(slippage)))
+        elif self["type"] == ORDER_TYPE_OPEN_SHORT or self["type"] == ORDER_TYPE_LIQUIDATE_LONG:
+            self["avg_price"] = int(self["price"] * (1 - abs(slippage)))
+        else:
+            raise RuntimeError("error order type")
+
+        # 计算 fee
+        if settle_mode == SETTLE_MODE_BASIS:
+            self["fee"] = real_number(self["deal_amount"]) * fee
+        else:
+            self["fee"] = real_number(self["deal_amount"]) * real_number(self["avg_price"]) * fee
+
+    def save(self, check: bool = False, raw_order_data: str = None, raw_market_data: str = None):
+        if check:
+            # 检验参数可用性
+            validate(instance=self, schema=order_input)
+
+        conn = Conn(self._db_name)
+        one = conn.query_one(
+            "SELECT id FROM {} WHERE instance_id = ? AND sequence = ?".format(self._table_name),
+            (self["instance_id"], self["sequence"]),
+        )
+
+        if one:
+            conn.execute(
+                "UPDATE {} SET place_type = ?, `type` = ?, price = ?, amount = ?,"
+                " avg_price = ?, deal_amount = ?, status = ?, lever = ?, fee = ?,"
+                " symbol = ?, exchange = ?, place_timestamp = ?, place_datetime = ?,"
+                " deal_timestamp = ?, deal_datetime = ?, swap_timestamp = ?, swap_datetime = ?,"
+                " cancel_timestamp = ?, cancel_datetime = ?, raw_order_data = ?, raw_market_data = ?"
+                " WHERE instance_id = ? AND sequence = ?".format(self._table_name),
+                (
+                    self["place_type"], self["type"], self["price"], self["amount"],
+                    self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"],
+                    self["symbol"], self["exchange"], self["place_timestamp"], self["place_datetime"],
+                    self["deal_timestamp"], self["deal_datetime"], self["swap_timestamp"], self["swap_datetime"],
+                    self["cancel_timestamp"], self["cancel_datetime"], raw_order_data, raw_market_data,
+                    self["instance_id"], self["sequence"],
+                ),
+            )
+        else:
+            conn.insert(
+                "INSERT INTO {} (instance_id, sequence, place_type, `type`, price,"
+                " amount, avg_price, deal_amount, status, lever,"
+                " fee, symbol, exchange, place_timestamp, place_datetime, deal_timestamp, deal_datetime,"
+                " cancel_timestamp, cancel_datetime, raw_order_data, raw_market_data) VALUES"
+                " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(
+                    self._table_name,
+                ),
+                (
+                    self["instance_id"], self["sequence"], self["place_type"], self["type"], self["price"],
+                    self["amount"], self["avg_price"], self["deal_amount"], self["status"], self["lever"],
+                    self["fee"], self["symbol"], self["exchange"], self["place_timestamp"], self["place_datetime"],
+                    self["deal_timestamp"], self["deal_datetime"], self["cancel_timestamp"], self["cancel_datetime"],
+                    raw_order_data, raw_market_data,
+                ),
+            )
+
+        orders = conn.query(
+            "SELECT * FROM {} WHERE instance_id = ? ORDER BY sequence".format(self._table_name),
+            (self["instance_id"],),
+        )
+
+        open_times, open_amount, open_fee = 0, 0, 0.0
+        open_start_timestamp, open_finish_timestamp = 0, 0
+        open_start_datetime, open_finish_datetime = "", ""
+        open_type, open_place_type = ORDER_TYPE_OPEN_LONG, ""
+
+        liquidate_times, liquidate_amount, liquidate_fee = 0, 0, 0.0
+        liquidate_start_timestamp, liquidate_finish_timestamp = 0, 0
+        liquidate_start_datetime, liquidate_finish_datetime = "", ""
+        liquidate_type, liquidate_place_type = ORDER_TYPE_LIQUIDATE_LONG, ""
+
+        for order in orders:
+            place_timestamp = order["place_timestamp"]
+            place_datetime = moment.get(order["place_timestamp"]).to(
+                self.get("timezone") or "Asia/Shanghai"
+            ).format("YYYY-MM-DD HH:mm:ss")
+
+            if order["type"] in (ORDER_TYPE_OPEN_LONG, ORDER_TYPE_OPEN_SHORT):
+                open_times += 1
+                open_amount += order["deal_amount"]
+                open_fee += order["fee"]
+                open_type = order["type"]
+                open_place_type = order["place_type"]
+
+                if order["sequence"] == 0:
+                    open_start_timestamp = place_timestamp
+                    open_start_datetime = place_datetime
+                open_finish_timestamp = place_timestamp
+                open_finish_datetime = place_datetime
+
+            if order["type"] in (ORDER_TYPE_LIQUIDATE_LONG, ORDER_TYPE_LIQUIDATE_SHORT):
+                liquidate_times += 1
+                liquidate_amount += order["deal_amount"]
+                liquidate_fee += order["fee"]
+                liquidate_type = order["type"]
+                liquidate_place_type = order["place_type"]
+
+                if liquidate_start_timestamp == 0:
+                    liquidate_start_timestamp = place_timestamp
+                    liquidate_start_datetime = place_datetime
+                liquidate_finish_timestamp = place_timestamp
+                liquidate_finish_datetime = place_datetime
+
+        if open_amount != liquidate_amount:
+            return
+
+        conn.execute(
+            "UPDATE {trade_type}_instance_{mode} SET open_times = ?, open_fee = ?, open_type = ?, open_place_type = ?,"
+            " open_start_timestamp = ?, open_start_datetime = ?, open_finish_timestamp = ?, open_finish_datetime = ?, "
+            " liquidate_times = ?, liquidate_fee = ?, liquidate_type = ?, liquidate_place_type = ?,"
+            " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
+            " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ? WHERE id = ?".format(
+                trade_type=self._trade_type,
+                mode= MODE_STRATEGY if self._mode != MODE_BACKTEST else MODE_BACKTEST,
+            ),
+            (
+                open_times, open_fee, open_type, open_place_type,
+                open_start_timestamp, open_start_datetime, open_finish_timestamp, open_finish_datetime,
+                liquidate_times, liquidate_fee, liquidate_type, liquidate_place_type,
+                liquidate_start_timestamp, liquidate_start_datetime,
+                liquidate_finish_timestamp, liquidate_finish_datetime, self["instance_id"],
+            ),
         )
 
 
@@ -103,7 +244,7 @@ future_order_init = {
         "unit_amount": {
             "type": "integer",
         },
-        "due_timestamp":{
+        "due_timestamp": {
             "type": "integer",
             "minimum": 1000000000000,
             "maximum": 9999999999999,
@@ -169,7 +310,7 @@ future_order_save = {
 }
 
 
-class FutureOrder(Order):
+class FutureOrder(CommonOrder):
     def __init__(self, order, **kwargs):
         super().__init__(order, **kwargs)
         validate(
@@ -183,20 +324,26 @@ class FutureOrder(Order):
         self["cancel_datetime"] = order.get("cancel_datetime")
 
     # 假设已经成交
-    def deal(self, slippage=0.01, fee=-0.0005):
+    def deal(self, slippage=0.01, fee=-0.0005, settle_mode=SETTLE_MODE_BASIS):
         # 回测时假设已经成交。
         self["deal_amount"] = self["amount"]
-        self["status"] = 1
+        self["status"] = ORDER_STATUS_FINISH
         if self["place_type"] in (ORDER_PLACE_TYPE_L_SWAP, ORDER_PLACE_TYPE_O_SWAP):
             slippage = 0.0
+
+        # 计算 avg_price
         if self["type"] == ORDER_TYPE_OPEN_LONG or self["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
             self["avg_price"] = int(self["price"] * (1 + slippage))
-            self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000 / self["avg_price"]
         elif self["type"] == ORDER_TYPE_OPEN_SHORT or self["type"] == ORDER_TYPE_LIQUIDATE_LONG:
             self["avg_price"] = int(self["price"] * (1 - slippage))
-            self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000 / self["avg_price"]
         else:
             raise RuntimeError("error order type")
+
+        # 计算 fee
+        if settle_mode == SETTLE_MODE_BASIS:
+            self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000 / self["avg_price"]
+        else:
+            self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000
 
     def save(self, check: bool = False, raw_order_data: str = None, raw_market_data: str = None):
         if check:
@@ -381,16 +528,16 @@ class FutureOrder(Order):
         )
 
 
-class SwapOrder(Order):
+class SwapOrder(CommonOrder):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
 
-class SpotOrder(Order):
+class SpotOrder(CommonOrder):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
 
-class MarginOrder(Order):
+class MarginOrder(CommonOrder):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

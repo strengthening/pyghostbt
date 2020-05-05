@@ -34,7 +34,7 @@ class Factor(object):
 
         self._symbol = kwargs.get("symbol")
         self._trade_type = kwargs.get("trade_type")
-        self._contract_type = kwargs.get("contract_type")
+        self._contract_type = kwargs.get("contract_type") or CONTRACT_TYPE_NONE
 
         self._db_name = kwargs.get("db_name", "default")
 

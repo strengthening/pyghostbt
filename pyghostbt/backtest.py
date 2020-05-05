@@ -4,102 +4,12 @@ from typing import List
 from typing import Dict
 from pyghostbt.strategy import Strategy
 from pyghostbt.tool.order import FutureOrder
+from pyghostbt.tool.order import CommonOrder
 from pyghostbt.tool.param import Param
 from pyghostbt.tool.indices import Indices
 from pyghostbt.tool.asset import Asset
 from pyghostbt.const import *
 from pyanalysis.mysql import Conn
-
-instance_param = {
-    "type": "object",
-    "required": [
-        "id", "symbol", "exchange", "strategy", "status", "interval",
-        "wait_start_timestamp", "wait_start_datetime", "wait_finish_timestamp", "wait_finish_datetime",
-        "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss_ratio",
-    ],
-    "properties": {
-        "id": {
-            "type": "integer",
-        },
-        "symbol": {
-            "type": "string",
-        },
-        "exchange": {
-            "type": "string",
-        },
-        "contract_type": {
-            "type": "string",
-            "enum": [
-                CONTRACT_TYPE_THIS_WEEK,
-                CONTRACT_TYPE_NEXT_WEEK,
-                CONTRACT_TYPE_QUARTER,
-            ],
-        },
-        "strategy": {
-            "type": "string",
-        },
-        "status": {
-            "type": "integer",
-            "enum": [
-                INSTANCE_STATUS_WAITING,
-                INSTANCE_STATUS_OPENING,
-                INSTANCE_STATUS_LIQUIDATING,
-                INSTANCE_STATUS_FINISHED,
-                INSTANCE_STATUS_ERROR,
-            ],
-        },
-        "interval": {
-            "type": "string",
-            "enum": [
-                KLINE_INTERVAL_1MIN,
-                KLINE_INTERVAL_15MIN,
-                KLINE_INTERVAL_1HOUR,
-                KLINE_INTERVAL_4HOUR,
-                KLINE_INTERVAL_1DAY,
-                KLINE_INTERVAL_1WEEK,
-            ],
-        },
-        "unit_amount": {
-            "type": "integer",
-            "enum": [10, 100],
-        },
-        "lever": {
-            "type": "integer",
-            "enum": [10, 20],
-        },
-        "wait_start_timestamp": {
-            "type": "integer",
-            "minimum": 1000000000000,
-            "maximum": 3000000000000,
-        },
-        "wait_start_datetime": {
-            "type": "string"
-        },
-        "wait_finish_timestamp": {
-            "type": "integer",
-            "minimum": 1000000000000,
-            "maximum": 3000000000000,
-        },
-        "wait_finish_datetime": {
-            "type": "string"
-        },
-        "total_asset": {
-            "type": "number",
-            "minimum": 0,
-        },
-        "sub_freeze_asset": {
-            "type": "number"
-        },
-        "param_position": {
-            "type": "number"
-        },
-        "param_max_abs_loss_ratio": {
-            "type": "number",
-            "minimum": -0.5,
-            "maximum": 0.5,
-        },
-    }
-}
 
 
 class Backtest(Strategy):
@@ -109,8 +19,7 @@ class Backtest(Strategy):
         # self._slippage = 0.01  # 滑点百分比
         # self._fee = -0.0005  # 手续费比例
 
-    @staticmethod
-    def __compare_candle_with_instance(candle: dict, instance: dict) -> dict:
+    def __compare_candle_with_instance(self, candle: dict, instance: dict) -> dict:
         """
         单个蜡烛和数据交易逻辑比较
         """
@@ -122,8 +31,9 @@ class Backtest(Strategy):
                 order["place_datetime"] = candle["date"]
                 order["deal_timestamp"] = candle["timestamp"]
                 order["deal_datetime"] = candle["date"]
-                order["due_timestamp"] = candle["due_timestamp"]
-                order["due_datetime"] = candle["due_date"]
+                if self["trade_type"] == TRADE_TYPE_FUTURE:
+                    order["due_timestamp"] = candle["due_timestamp"]
+                    order["due_datetime"] = candle["due_date"]
                 return instance
         elif order["place_type"] == ORDER_PLACE_TYPE_B_TAKER:
             if candle["low"] < order["price"]:
@@ -131,8 +41,9 @@ class Backtest(Strategy):
                 order["place_datetime"] = candle["date"]
                 order["deal_timestamp"] = candle["timestamp"]
                 order["deal_datetime"] = candle["date"]
-                order["due_timestamp"] = candle["due_timestamp"]
-                order["due_datetime"] = candle["due_date"]
+                if self["trade_type"] == TRADE_TYPE_FUTURE:
+                    order["due_timestamp"] = candle["due_timestamp"]
+                    order["due_datetime"] = candle["due_date"]
                 return instance
         elif order["place_type"] == ORDER_PLACE_TYPE_MARKET:
             order["price"] = candle["close"]
@@ -141,15 +52,15 @@ class Backtest(Strategy):
             order["place_datetime"] = candle["date"]
             order["deal_timestamp"] = candle["timestamp"]
             order["deal_datetime"] = candle["date"]
-            order["due_timestamp"] = candle["due_timestamp"]
-            order["due_datetime"] = candle["due_date"]
+            if self["trade_type"] == TRADE_TYPE_FUTURE:
+                order["due_timestamp"] = candle["due_timestamp"]
+                order["due_datetime"] = candle["due_date"]
             return instance
         else:
             raise RuntimeError("do not support the other place_type", order["place_type"])
         return {}
 
-    @staticmethod
-    def __compare_candles_with_instances(candles: list, instances: list) -> list:
+    def __compare_candles_with_instances(self, candles: list, instances: list) -> list:
         """
         同一个timestamp不同的contract的蜡烛数据和交易逻辑进行比较。
         """
@@ -179,7 +90,7 @@ class Backtest(Strategy):
                     o_swap_instance["order"]["deal_timestamp"] = the_candle["timestamp"]
                     o_swap_instance["order"]["deal_datetime"] = the_candle["date"]
             else:
-                if the_candle and Backtest.__compare_candle_with_instance(the_candle, instance):
+                if the_candle and self.__compare_candle_with_instance(the_candle, instance):
                     return [instance]
         if l_price and o_price:
             if -0.03 < o_price / l_price - 1 < 0.03:
@@ -187,8 +98,8 @@ class Backtest(Strategy):
         return []
 
     # 多个timestamp的多个contract的蜡烛数据，跟instance比较。
-    @staticmethod
     def __compare_candles_kv_with_instances(
+            self,
             candles_kv: Dict[int, Dict[int, dict]],
             instances: List[dict],
     ) -> List[dict]:
@@ -237,7 +148,7 @@ class Backtest(Strategy):
             else:
                 # 除了swap的订单进行匹配。
                 the_candle = candles_kv[candle_timestamps[0]].get(instance["order"]["due_timestamp"])
-                if the_candle and Backtest.__compare_candle_with_instance(
+                if the_candle and self.__compare_candle_with_instance(
                         the_candle,
                         instance,
                 ):
@@ -253,7 +164,7 @@ class Backtest(Strategy):
             finish_timestamp: int,
             instances: List[Dict] = None,
             standard: bool = True,
-    ) -> dict:
+    ) -> Dict:
         candles = self._kline.query_range(
             start_timestamp,
             finish_timestamp,
@@ -274,7 +185,7 @@ class Backtest(Strategy):
             finish_timestamp: int,
             instances: list = None,
             standard: bool = True,
-    ) -> List[dict]:
+    ) -> List[Dict]:
         candles = self._kline.query_range_contracts(
             start_timestamp,
             finish_timestamp,
@@ -282,7 +193,7 @@ class Backtest(Strategy):
             standard=standard
         )
 
-        frag_candles_kv: Dict[int, Dict[int, dict]] = {}  # the key is timestamp, due_timestamp, value is candle
+        frag_candles_kv: Dict[int, Dict[int, Dict]] = {}  # the key is timestamp, due_timestamp, value is candle
         tmp_instances: List[dict] = []  # 触发后的instances
         last_timestamp = 0
 
@@ -308,7 +219,7 @@ class Backtest(Strategy):
             finish_timestamp: int,
             instances=None,
             standard=True,
-    ) -> dict:
+    ) -> Dict:
         candles = self._kline.query(
             start_timestamp,
             finish_timestamp,
@@ -333,35 +244,65 @@ class Backtest(Strategy):
         if one is None:
             raise RuntimeError("I think can not insert in this place. ")
 
-        conn.execute(
-            "UPDATE {trade_type}_instance_{mode} SET symbol = ?, exchange = ?, contract_type = ?,"
-            " strategy = ?, unit_amount = ?, lever = ?, status = ?, `interval` = ?,"
-            " wait_start_timestamp = ?, wait_start_datetime = ?,"
-            " wait_finish_timestamp = ?, wait_finish_datetime = ?,"
-            " open_start_timestamp = ?, open_start_datetime = ?,"
-            " open_finish_timestamp = ?, open_finish_datetime = ?,"
-            " open_expired_timestamp = ?, open_expired_datetime = ?,"
-            " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
-            " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
-            " total_asset = ?, sub_freeze_asset = ?, param_position = ?, param_max_abs_loss_ratio = ?"
-            " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
-            (
-                self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
-                self["unit_amount"], self["lever"], self["status"], self["interval"],
-                self["wait_start_timestamp"], self["wait_start_datetime"],
-                self["wait_finish_timestamp"], self["wait_finish_datetime"],
-                self["open_start_timestamp"], self["open_start_datetime"],
-                self["open_finish_timestamp"], self["open_finish_datetime"],
-                self["open_expired_timestamp"], self["open_expired_datetime"],
-                self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
-                self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
-                self["total_asset"], self["sub_freeze_asset"], self["param_position"],
-                self["param_max_abs_loss_ratio"],
-                self["id"],
-            ),
-        )
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            conn.execute(
+                "UPDATE {trade_type}_instance_{mode} SET symbol = ?, exchange = ?, contract_type = ?,"
+                " strategy = ?, unit_amount = ?, lever = ?, status = ?, `interval` = ?,"
+                " wait_start_timestamp = ?, wait_start_datetime = ?,"
+                " wait_finish_timestamp = ?, wait_finish_datetime = ?,"
+                " open_start_timestamp = ?, open_start_datetime = ?,"
+                " open_finish_timestamp = ?, open_finish_datetime = ?,"
+                " open_expired_timestamp = ?, open_expired_datetime = ?,"
+                " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
+                " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
+                " total_asset = ?, sub_freeze_asset = ?, param_position = ?, param_max_abs_loss_ratio = ?"
+                " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
+                (
+                    self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
+                    self["unit_amount"], self["lever"], self["status"], self["interval"],
+                    self["wait_start_timestamp"], self["wait_start_datetime"],
+                    self["wait_finish_timestamp"], self["wait_finish_datetime"],
+                    self["open_start_timestamp"], self["open_start_datetime"],
+                    self["open_finish_timestamp"], self["open_finish_datetime"],
+                    self["open_expired_timestamp"], self["open_expired_datetime"],
+                    self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
+                    self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
+                    self["total_asset"], self["sub_freeze_asset"], self["param_position"],
+                    self["param_max_abs_loss_ratio"],
+                    self["id"],
+                ),
+            )
+            order: FutureOrder = self["order"]
+        else:
+            conn.execute(
+                "UPDATE {trade_type}_instance_{mode} SET symbol = ?, exchange = ?,"
+                " strategy = ?, status = ?, `interval` = ?,"
+                " wait_start_timestamp = ?, wait_start_datetime = ?,"
+                " wait_finish_timestamp = ?, wait_finish_datetime = ?,"
+                " open_start_timestamp = ?, open_start_datetime = ?,"
+                " open_finish_timestamp = ?, open_finish_datetime = ?,"
+                " open_expired_timestamp = ?, open_expired_datetime = ?,"
+                " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
+                " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
+                " asset_total = ?, asset_freeze = ?, param_position = ?, param_max_abs_loss_ratio = ?"
+                " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
+                (
+                    self["symbol"], self["exchange"],
+                    self["strategy"], self["status"], self["interval"],
+                    self["wait_start_timestamp"], self["wait_start_datetime"],
+                    self["wait_finish_timestamp"], self["wait_finish_datetime"],
+                    self["open_start_timestamp"], self["open_start_datetime"],
+                    self["open_finish_timestamp"], self["open_finish_datetime"],
+                    self["open_expired_timestamp"], self["open_expired_datetime"],
+                    self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
+                    self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
+                    self["asset_total"], self["asset_freeze"], self["param_position"],
+                    self["param_max_abs_loss_ratio"],
+                    self["id"],
+                ),
+            )
+            order: CommonOrder = self["order"]
 
-        order: FutureOrder = self["order"]
         order.deal(slippage=slippage, fee=fee)
         order.save(
             check=True,
@@ -415,7 +356,12 @@ class Backtest(Strategy):
         _, settle_pnl = self._settle_pnl()
 
         # 步骤二： 解冻并结算。
-        asset.unfreeze_and_settle(self["sub_freeze_asset"], self["param"]["position"], settle_pnl, place_timestamp)
+        asset.unfreeze_and_settle(
+            self.get("sub_freeze_asset") or self.get("asset_freeze"),
+            self["param"]["position"],
+            settle_pnl,
+            place_timestamp,
+        )
 
         # 步骤三： 更新到对应的instance上。
         conn = Conn(self["db_name"])

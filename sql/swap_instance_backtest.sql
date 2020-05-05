@@ -1,4 +1,4 @@
-CREATE TABLE `swap_instance_strategy` (
+CREATE TABLE `swap_instance_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE `swap_instance_strategy` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `symbol` (`symbol`, `exchange`, `contract_type`, `strategy`, `wait_start_timestamp`, `backtest_id`),
+  UNIQUE KEY `symbol` (`symbol`, `exchange`, `strategy`, `wait_start_timestamp`, `backtest_id`),
   KEY `open_start_timestamp` (`open_start_timestamp`, `status`),
   KEY `wait_start_timestamp` (`wait_start_timestamp`),
   KEY `liquidate_finish_timestamp` (`liquidate_finish_timestamp`)

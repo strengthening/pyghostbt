@@ -5,13 +5,16 @@ from jsonschema import validate
 from pyanalysis.mysql import Conn
 from pyanalysis.moment import moment
 from pyghostbt.tool.runtime import Runtime
-from pyghostbt.tool.asset import Asset
+from pyghostbt.tool.asset import CommonAsset
+from pyghostbt.tool.asset import FutureAsset
 from pyghostbt.tool.indices import Indices
 from pyghostbt.tool.param import Param
+from pyghostbt.tool.order import CommonOrder
 from pyghostbt.tool.order import FutureOrder
 from pyghostbt.util import get_contract_type
 from pyghostbt.util import real_number
 from pyghostbt.const import *
+from pyghostbt.validate import INSTANCE_VALIDATE
 
 strategy_input = {
     "type": "object",
@@ -26,148 +29,36 @@ strategy_input = {
     }
 }
 
-instance_param = {
-    "type": "object",
-    "required": [
-        "id", "symbol", "exchange", "strategy", "status", "interval",
-        "total_asset", "sub_freeze_asset", "param_position", "param_max_abs_loss_ratio",
-        "wait_start_timestamp", "wait_start_datetime",
-        "wait_finish_timestamp", "wait_finish_datetime",
-        "open_start_timestamp", "open_start_datetime",
-        "open_finish_timestamp", "open_finish_datetime",
-        "open_expired_timestamp", "open_expired_datetime",
-        "liquidate_start_timestamp", "liquidate_start_datetime",
-        "liquidate_finish_timestamp", "liquidate_finish_datetime",
-    ],
-    "properties": {
-        "id": {
-            "type": "integer",
-        },
-        "symbol": {
-            "type": "string",
-        },
-        "exchange": {
-            "type": "string",
-        },
-        "contract_type": {
-            "type": "string",
-            "enum": [
-                CONTRACT_TYPE_THIS_WEEK,
-                CONTRACT_TYPE_NEXT_WEEK,
-                CONTRACT_TYPE_QUARTER,
-            ],
-        },
-        "strategy": {
-            "type": "string",
-        },
-        "status": {
-            "type": "integer",
-            "enum": [
-                INSTANCE_STATUS_WAITING,
-                INSTANCE_STATUS_OPENING,
-                INSTANCE_STATUS_LIQUIDATING,
-                INSTANCE_STATUS_FINISHED,
-                INSTANCE_STATUS_ERROR,
-            ],
-        },
-        "interval": {
-            "type": "string",
-            "enum": [
-                KLINE_INTERVAL_1MIN,
-                KLINE_INTERVAL_15MIN,
-                KLINE_INTERVAL_1HOUR,
-                KLINE_INTERVAL_4HOUR,
-                KLINE_INTERVAL_1DAY,
-                KLINE_INTERVAL_1WEEK,
-            ],
-        },
-        "unit_amount": {
-            "type": "integer",
-            "enum": [10, 100],
-        },
-        "lever": {
-            "type": "integer",
-            "enum": [10, 20],
-        },
-        "total_asset": {
-            "type": "number",
-            "minimum": 0,
-        },
-        "sub_freeze_asset": {
-            "type": "number"
-        },
-        "param_position": {
-            "type": "number"
-        },
-        "param_max_abs_loss_ratio": {
-            "type": "number",
-            "minimum": -0.5,
-            "maximum": 0.5,
-        },
-        "wait_start_timestamp": {
-            "type": "integer",
-            "minimum": 1000000000000,
-            "maximum": 3000000000000,
-        },
-        "wait_start_datetime": {
-            "type": "string"
-        },
-        "wait_finish_timestamp": {
-            "type": "integer",
-            "minimum": 1000000000000,
-            "maximum": 3000000000000,
-        },
-        "wait_finish_datetime": {
-            "type": "string"
-        },
-        "open_start_timestamp": {
-            "type": "integer",
-        },
-        "open_start_datetime": {
-            "type": ["string", "null"],
-        },
-        "open_finish_timestamp": {
-            "type": "integer",
-        },
-        "open_finish_datetime": {
-            "type": ["string", "null"],
-        },
-        "open_expired_timestamp": {
-            "type": "integer",
-        },
-        "open_expired_datetime": {
-            "type": ["string", "null"],
-        },
-        "liquidate_start_timestamp": {
-            "type": "integer",
-        },
-        "liquidate_start_datetime": {
-            "type": ["string", "null"],
-        },
-        "liquidate_finish_timestamp": {
-            "type": "integer",
-        },
-        "liquidate_finish_datetime": {
-            "type": ["string", "null"],
-        }
-    }
-}
-
 
 class Strategy(Runtime):
     def __init__(self, kw):
         super().__init__(kw)
         validate(instance=kw, schema=strategy_input)
         # 初始化各个组件
-        self["asset"] = Asset(
-            trade_type=self.get("trade_type"),
-            symbol=self.get("symbol"),
-            exchange=self.get("exchange"),
-            contract_type=self.get("contract_type"),
-            db_name=self.get("db_name_asset") or self.get("db_name"),
-            mode=self.get("mode"),
-            backtest_id=self.get("backtest_id"),
-        )
+
+        if self.get("trade_type") == TRADE_TYPE_FUTURE:
+            self["asset"] = FutureAsset(
+                trade_type=self.get("trade_type"),
+                symbol=self.get("symbol"),
+                exchange=self.get("exchange"),
+                contract_type=self.get("contract_type"),
+                db_name=self.get("db_name_asset") or self.get("db_name"),
+                mode=self.get("mode"),
+                settle_mode=self.get("settle_mode") or SETTLE_MODE_BASIS,
+                backtest_id=self.get("backtest_id"),
+            )
+        else:
+            self["asset"] = CommonAsset(
+                trade_type=self.get("trade_type"),
+                symbol=self.get("symbol"),
+                exchange=self.get("exchange"),
+                contract_type=self.get("contract_type"),
+                db_name=self.get("db_name_asset") or self.get("db_name"),
+                mode=self.get("mode"),
+                settle_mode=self.get("settle_mode") or SETTLE_MODE_BASIS,
+                backtest_id=self.get("backtest_id"),
+            )
+
         self["indices"] = Indices(
             self.get("indices") or {},
             mode=self.get("mode"),
@@ -204,7 +95,7 @@ class Strategy(Runtime):
 
     @staticmethod
     def check_instance(instance):
-        validate(instance=instance, schema=instance_param)
+        validate(instance=instance, schema=INSTANCE_VALIDATE)
 
     # 获取instance 风险等级。
     def _get_risk_level(self, timestamp: int, instance_id: int) -> int:
@@ -282,6 +173,33 @@ class Strategy(Runtime):
         )
         return item["id"] if item else 0
 
+    def _is_opened(self, wait_start_timestamp: int) -> bool:
+        conn = Conn(self["db_name"])
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            opened = conn.query(
+                "SELECT id FROM future_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?"
+                " AND strategy = ? AND wait_start_timestamp = ? AND status > ?".format(
+                    mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+                ),
+                (
+                    self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
+                    wait_start_timestamp, INSTANCE_STATUS_WAITING,
+                ),
+            )
+            return len(opened) > 0
+        opened = conn.query(
+            "SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ? "
+            "AND wait_start_timestamp = ? AND status > ?".format(
+                trade_type=self["trade_type"],
+                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+            ),
+            (
+                self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
+                wait_start_timestamp, INSTANCE_STATUS_WAITING,
+            ),
+        )
+        return len(opened) > 0
+
     def get_waiting(self, timestamp):
         # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
         conn = Conn(self["db_name"])
@@ -312,7 +230,7 @@ class Strategy(Runtime):
                 self["symbol"], self["exchange"], self["contract_type"],
                 self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
             )
-        elif self["trade_type"] == TRADE_TYPE_FUTURE and self["mode"] in (MODE_OFFLINE, MODE_ONLINE):
+        elif self["trade_type"] == TRADE_TYPE_FUTURE and self["mode"] in (MODE_OFFLINE, MODE_ONLINE, MODE_STRATEGY):
             query_sql = """
             SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?
              AND strategy = ? AND status = ? AND wait_start_timestamp = ?
@@ -327,35 +245,25 @@ class Strategy(Runtime):
             )
 
         # 线上环境中应该查找对应的instance记录来确定最新的 id
-        item = conn.query_one(
+        one = conn.query_one(
             query_sql.format(
                 trade_type=self["trade_type"],
                 mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
             ),
             params
         )
-        if item:
-            self.__setitem__("id", item["id"])
+        if one:
+            self.__setitem__("id", one["id"])
         # 回测时生成对应的 id
-        if self["mode"] == MODE_BACKTEST and item is None:
-            last_insert_id = conn.insert(insert_sql.format(**self), params)
+        if self["mode"] == MODE_BACKTEST and one is None:
+            last_insert_id = conn.insert(
+                insert_sql.format(
+                    trade_type=self["trade_type"],
+                    mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+                ),
+                params,
+            )
             self.__setitem__("id", last_insert_id)
-
-    def _is_opened(self, wait_start_timestamp: int) -> bool:
-        conn = Conn(self["db_name"])
-        opened = conn.query(
-            "SELECT id FROM future_instance_strategy WHERE symbol = ? AND exchange = ? AND contract_type = ?"
-            " AND strategy = ? AND wait_start_timestamp = ? AND status > ?",
-            (
-                self["symbol"],
-                self["exchange"],
-                self["contract_type"],
-                self["strategy"],
-                wait_start_timestamp,
-                INSTANCE_STATUS_WAITING,
-            ),
-        )
-        return len(opened) > 0
 
     def get_opening(self, timestamp: int) -> list:
         if self["mode"] not in (MODE_BACKTEST, MODE_STRATEGY):
@@ -389,8 +297,12 @@ class Strategy(Runtime):
             raise RuntimeError("the ")
 
         self["status"] = instance["status"]
-        self["total_asset"] = instance["total_asset"]
-        self["sub_freeze_asset"] = instance["sub_freeze_asset"]
+        # todo remove these two column.
+        self["total_asset"] = instance.get("total_asset") or instance.get("asset_total")
+        self["sub_freeze_asset"] = instance.get("sub_freeze_asset") or instance.get("asset_freeze")
+
+        self["asset_total"] = instance.get("total_asset") or instance.get("asset_total")
+        self["asset_freeze"] = instance.get("sub_freeze_asset") or instance.get("asset_freeze")
 
         self["param_position"] = instance["param_position"]
         self["param_max_abs_loss_ratio"] = instance["param_max_abs_loss_ratio"]
@@ -413,10 +325,19 @@ class Strategy(Runtime):
         self["liquidate_finish_datetime"] = instance["liquidate_finish_datetime"]
 
         self["order"] = instance["order"]
-        self["param"] = instance["param"]
-        self["indices"] = instance["indices"]
+        self["param"] = Param(
+            instance.get("param") or {},
+            trade_type=self["trade_type"],
+            db_name=self["db_name"],
+            mode=self["mode"],
+        )
+        self["indices"] = Indices(
+            instance.get("indices") or {},
+            trade_type=self["trade_type"],
+            db_name=self["db_name"],
+            mode=self["mode"],
+        )
 
-    # TODO 从数据库中读取对应的信息。
     def load_from_db(self, instance_id):
         conn = Conn(self["db_name"])
         tmp_instance = conn.query_one(
@@ -432,8 +353,13 @@ class Strategy(Runtime):
 
         self["id"] = tmp_instance["id"]
         self["status"] = tmp_instance["status"]
-        self["total_asset"] = tmp_instance["total_asset"]
-        self["sub_freeze_asset"] = tmp_instance["sub_freeze_asset"]
+
+        self["total_asset"] = tmp_instance.get("total_asset") or tmp_instance.get("asset_total")
+        self["sub_freeze_asset"] = tmp_instance.get("sub_freeze_asset") or tmp_instance.get("asset_freeze")
+        self["asset_total"] = tmp_instance.get("total_asset") or tmp_instance.get("asset_total")
+        self["asset_freeze"] = tmp_instance.get("sub_freeze_asset") or tmp_instance.get("asset_freeze")
+        # self["total_asset"] = tmp_instance["total_asset"]
+        # self["sub_freeze_asset"] = tmp_instance["sub_freeze_asset"]
 
         self["param_position"] = tmp_instance["param_position"]
         self["param_max_abs_loss_ratio"] = tmp_instance["param_max_abs_loss_ratio"]
@@ -456,13 +382,35 @@ class Strategy(Runtime):
         self["liquidate_finish_timestamp"] = tmp_instance["liquidate_finish_timestamp"]
         self["liquidate_finish_datetime"] = tmp_instance["liquidate_finish_datetime"]
 
-        param = Param({}, trade_type=self["trade_type"], db_name=self["db_name"], mode=self["mode"])
+        param = Param(
+            {},
+            trade_type=self["trade_type"],
+            db_name=self["db_name"],
+            mode=self["mode"],
+        )
         param.load(instance_id)
         self["param"] = param
 
-        indices = Indices({}, trade_type=self["trade_type"], db_name=self["db_name"], mode=self["mode"])
+        indices = Indices(
+            {},
+            trade_type=self["trade_type"],
+            db_name=self["db_name"],
+            mode=self["mode"],
+        )
         indices.load(instance_id)
         self["indices"] = indices
+
+    def _get_orders(self) -> List:
+        conn = Conn(self["db_name"])
+        orders = conn.query(
+            "SELECT * FROM {trade_type}_order_{mode} WHERE instance_id = ?"
+            " ORDER BY sequence".format(
+                trade_type=self["trade_type"],
+                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+            ),
+            (self["id"])
+        )
+        return orders
 
     def _analysis_orders(self, due_ts: int) -> tuple:
         """
@@ -474,17 +422,7 @@ class Strategy(Runtime):
         orders amount record
         orders sum record
         """
-
-        conn = Conn(self["db_name"])
-        orders = conn.query(
-            "SELECT * FROM {trade_type}_order_{mode}"
-            " WHERE instance_id = ? ORDER BY sequence".format(
-                trade_type=self["trade_type"],
-                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY
-            ),
-            (self["id"],),
-        )
-
+        orders = self._get_orders()
         if len(orders) == 0:
             return -1, 0, 0, 0, {}, {}
 
@@ -533,16 +471,7 @@ class Strategy(Runtime):
 
         """
 
-        conn = Conn(self["db_name"])
-        orders = conn.query(
-            "SELECT * FROM {trade_type}_order_{mode}"
-            " WHERE instance_id = ? ORDER BY sequence".format(
-                trade_type=self["trade_type"],
-                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY
-            ),
-            (self["id"],),
-        )
-
+        orders = self._get_orders()
         if len(orders) == 0:
             return -1, 0, 0, 0, {}, {}
 
@@ -551,6 +480,10 @@ class Strategy(Runtime):
         start_sequence = orders[-1]["sequence"] + 1
         opened_prices = []
         opened_amounts = []
+
+        # spot swap margin 交易没有due_timestamp的概念，故设置为0
+        if due_ts is None:
+            due_ts = 0
         opening_amounts, opening_quota = {due_ts: 0}, {due_ts: 0}
 
         for order in orders:
@@ -559,7 +492,7 @@ class Strategy(Runtime):
             if order.get("status") == ORDER_STATUS_UNFINISH:
                 return -1, 0, 0, 0, {}, {}
 
-            order_due_ts = order["due_timestamp"]
+            order_due_ts = order.get("due_timestamp") or 0
             if order_due_ts not in opening_amounts:
                 opening_amounts[order_due_ts] = 0
                 opening_quota[order_due_ts] = 0
@@ -581,23 +514,64 @@ class Strategy(Runtime):
                     opening_quota[order_due_ts] -= order["deal_amount"] * order["avg_price"]
             else:
                 raise RuntimeError("Not found the order type")
-        opening_avg_price = opened_quota / sum([opening_amounts[ts] for ts in opening_amounts])
+
+        opening_amount = sum([opening_amounts[ts] for ts in opening_amounts])
+        opening_avg_price = 0
+        if opening_amount > 0:
+            opening_avg_price = opened_quota / opening_amount
         return start_sequence, opened_times, opening_avg_price, opened_prices, opened_amounts, opening_amounts, opening_quota
 
-    def _settle_pnl(self) -> Tuple[bool, float]:
-        conn = Conn(self["db_name"])
-        orders = conn.query(
-            "SELECT * FROM {trade_type}_order_{mode} WHERE instance_id = ?"
-            " ORDER BY sequence".format(trade_type=self["trade_type"], mode=self["mode"]),
-            (self["id"])
-        )
+    def _settle_pnl(self, settle_mode=SETTLE_MODE_BASIS) -> Tuple[bool, float]:
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            return self._settle_future_pnl()
 
+        total_fee: float = 0.0
+        liquidate_amount: int = 0
+        open_amount: int = 0
+        open_quota: float = 0.0
+        liquidate_quota: float = 0.0
+
+        orders = self._get_orders()
+        for order in orders:
+            if order["status"] == ORDER_STATUS_FAIL:
+                return False, 0.0
+
+            avg_price = real_number(order["avg_price"])
+            deal_amount = real_number(order["deal_amount"])
+            total_fee += order["fee"]
+
+            if order["type"] == ORDER_TYPE_OPEN_LONG:
+                open_amount += order["deal_amount"]
+                open_quota += avg_price * deal_amount
+            elif order["type"] == ORDER_TYPE_OPEN_SHORT:
+                open_amount += order["deal_amount"]
+                open_quota -= avg_price * deal_amount
+            elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
+                liquidate_amount += order["deal_amount"]
+                liquidate_quota -= avg_price * deal_amount
+            elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
+                liquidate_amount += order["deal_amount"]
+                liquidate_quota += avg_price * deal_amount
+            else:
+                raise RuntimeError("the order type is not right. ")
+
+        if open_amount != liquidate_amount:
+            return False, 0.0
+
+        settle_pnl = open_quota + liquidate_quota
+        if settle_mode == SETTLE_MODE_BASIS:
+            settle_pnl = settle_pnl / abs(liquidate_quota / real_number(liquidate_amount))
+
+        return True, total_fee + settle_pnl
+
+    def _settle_future_pnl(self) -> Tuple[bool, float]:
+        orders = self._get_orders()
         settle_pnl, total_fee, open_amount, liquidate_amount = 0.0, 0.0, 0, 0
         contract_kv = {}
 
         for order in orders:
             if order["status"] == ORDER_STATUS_FAIL:
-                continue
+                return False, 0.0
             avg_price = real_number(order["avg_price"])
             total_fee += order["fee"]
             if order["due_timestamp"] not in contract_kv:
@@ -662,26 +636,44 @@ class Strategy(Runtime):
             order_type: int,  # 交易类型
             place_type: str,  # 下单手法
     ):
-        due_datetime = moment.get(due_timestamp).to(
-            self["timezone"] or "Asia/Shanghai",
-        ).format("YYYY-MM-DD HH:mm:ss")
 
         instance = self.copy()
-        instance["order"] = FutureOrder(
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            due_datetime = moment.get(due_timestamp).to(
+                self["timezone"] or "Asia/Shanghai",
+            ).format("YYYY-MM-DD HH:mm:ss")
+            instance["order"] = FutureOrder(
+                {
+                    "place_type": place_type,
+                    "type": order_type,
+                    "symbol": self["symbol"],
+                    "exchange": self["exchange"],
+                    "contract_type": get_contract_type(timestamp, due_timestamp),
+                    "instance_id": self["id"],
+                    "sequence": sequence,
+                    "price": int(price),
+                    "amount": amount,
+                    "lever": self["lever"],
+                    "due_timestamp": due_timestamp,
+                    "due_datetime": due_datetime,
+                    "unit_amount": self["unit_amount"],
+                },
+                trade_type=self["trade_type"],
+                db_name=self["db_name"],
+                mode=self["mode"],
+            )
+            return instance
+
+        instance["order"] = CommonOrder(
             {
                 "place_type": place_type,
                 "type": order_type,
                 "symbol": self["symbol"],
                 "exchange": self["exchange"],
-                "contract_type": get_contract_type(timestamp, due_timestamp),
                 "instance_id": self["id"],
                 "sequence": sequence,
                 "price": int(price),
                 "amount": amount,
-                "lever": self["lever"],
-                "due_timestamp": due_timestamp,
-                "due_datetime": due_datetime,
-                "unit_amount": self["unit_amount"],
             },
             trade_type=self["trade_type"],
             db_name=self["db_name"],

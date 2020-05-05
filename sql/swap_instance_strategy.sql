@@ -42,7 +42,7 @@ CREATE TABLE `swap_instance_strategy` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `symbol` (`symbol`, `exchange`, `contract_type`, `strategy`, `wait_start_timestamp`),
+  UNIQUE KEY `symbol` (`symbol`, `exchange`, `strategy`, `wait_start_timestamp`),
   KEY `open_start_timestamp` (`open_start_timestamp`, `status`),
   KEY `wait_start_timestamp` (`wait_start_timestamp`),
   KEY `liquidate_finish_timestamp` (`liquidate_finish_timestamp`)

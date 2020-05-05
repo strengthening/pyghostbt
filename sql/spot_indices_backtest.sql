@@ -1,4 +1,4 @@
-CREATE TABLE `spot_indices_strategy` (
+CREATE TABLE `spot_indices_backtest` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `instance_id` int(11) NOT NULL COMMENT 'instance id',
   `indices_name` varchar(50) NOT NULL,

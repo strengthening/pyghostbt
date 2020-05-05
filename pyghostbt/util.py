@@ -9,6 +9,7 @@ from pyanalysis.moment import moment
 from pyghostbt.const import CONTRACT_TYPE_THIS_WEEK
 from pyghostbt.const import CONTRACT_TYPE_NEXT_WEEK
 from pyghostbt.const import CONTRACT_TYPE_QUARTER
+from pyghostbt.const import SETTLE_MODE_BASIS
 
 
 def uuid() -> str:
@@ -58,75 +59,6 @@ def get_o_or_l_price(
         open_times: int = None,
 ) -> List[int]:
     return [anchored_price + i * diff for i in range(open_times)]
-
-
-def get_open_amount(
-        total_asset: float = None,
-        max_rel_loss_ratio: float = None,
-        position: float = None,
-        unit_amount: int = None,
-        slippage: float = None,
-        open_price: int = None,
-        liquidate_price: int = None,
-        open_times: int = 3,
-        fee_rate: float = -0.0005,  # The fee_rate must be negative.
-        scale: float = 1.0,
-) -> (List[int], float):
-    """Get the open amount array.
-
-    The open amount is a complicated calculating process. This func calculate it for worst situation. Why complicated?
-    1. total_asset包含了fee + 保证金。其中fee是损失，所以total_asset并不能当做净值计算open_amount。
-    2. 开仓平仓会有滑点，滑点会带来fee的变动，以及open_amount的变动。
-
-    故此方法假设，此次交易以最差的情况止损。并在开仓，平仓都有滑点的情况下完成交易。
-
-    Args:
-        total_asset: The total asset of the pair
-        max_rel_loss_ratio: The max loss relative 1 position, defined in param.
-        position: The position want to open.
-        unit_amount: The contract unit amount.
-        slippage: The slippage must be negative.
-        open_price: The avg_price of open orders.
-        liquidate_price: The avg_price of worst loss liquidate orders.
-        open_times: The times to divide.
-        fee_rate: The fee rate
-        scale:
-
-    Returns:
-        amount array of each open times.
-    """
-
-    real_open_price = real_number(open_price)
-    real_liquidate_price = real_number(liquidate_price) * (1.0 + slippage)
-    worst_real_price = min(real_open_price, real_liquidate_price)
-
-    # 粗略的开仓张数
-    open_amount = total_asset * position * worst_real_price * (1.0 + slippage) / unit_amount
-
-    # 计算净资产
-    max_open_fee = total_asset * position * fee_rate
-    max_liquidate_fee = open_amount * unit_amount * fee_rate / real_liquidate_price
-    net_asset = total_asset + max_open_fee + max_liquidate_fee
-    open_amount = net_asset * position * worst_real_price * (1.0 + slippage) / unit_amount
-
-    amounts: List[int] = []
-    sum_amount = 0
-    sum_scale = scale * open_times
-    if scale != 1.0:
-        sum_scale = (1 - math.pow(scale, open_times)) / (1 - scale)
-    for i in range(open_times):
-        amount = int(open_amount * math.pow(scale, i) / sum_scale)
-        sum_amount += amount
-        amounts.append(amount)
-
-    real_loss_asset = -abs(sum_amount * unit_amount * (real_liquidate_price - real_open_price))
-    real_loss_asset = real_loss_asset / real_open_price / real_liquidate_price
-    max_loss_asset = max_rel_loss_ratio * total_asset * position  # 相对于1 postion亏损最大资产值
-
-    if real_loss_asset < max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
-        return [int(max_loss_asset / real_loss_asset * amount) for amount in amounts], max_loss_asset / real_loss_asset
-
-    return amounts, position
 
 
 # pdr is short for position_dilution_ratio
@@ -193,6 +125,86 @@ def get_amount_and_pdr(
     real_loss_asset = real_loss_asset / real_open_price / real_liquidate_price
     max_loss_asset = abs(max_rel_loss_ratio * total_asset * position)  # 相对于设置的position亏损最大资产值
 
+    if real_loss_asset > max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
+        return [int(max_loss_asset / real_loss_asset * amount) for amount in amounts], max_loss_asset / real_loss_asset
+
+    return amounts, 1.0
+
+
+# pdr is short for position_dilution_ratio
+def get_amount_and_pdr_v1(
+        asset_total: float = None,
+        max_rel_loss_ratio: float = None,
+        position: float = None,
+        unit_amount: int = 1,
+        slippage: float = None,
+        open_price: int = None,
+        liquidate_price: int = None,
+        open_times: int = 3,
+        fee_rate: float = -0.0005,
+        scale: float = 1.0,
+        settle_mode: str = SETTLE_MODE_BASIS,
+) -> (List[int], float):
+    """Get the open amount array.
+
+    The open amount is a complicated calculating process. This func calculate it for worst situation. Why complicated?
+    1. total_asset包含了fee + 保证金。其中fee是损失，所以total_asset并不能当做净值计算open_amount。
+    2. 开仓平仓会有滑点，滑点会带来fee的变动，以及open_amount的变动。
+
+    故此方法假设，此次交易以最差的情况止损。并在开仓，平仓都有滑点的情况下完成交易。
+
+    Args:
+        asset_total: The total asset of the pair
+        max_rel_loss_ratio: The max loss relative 1 position, defined in param.
+        position: The position want to open.
+        unit_amount: The contract unit amount, may used in future, default is none.
+        slippage: The slippage must be negative.
+        open_price: The avg_price of open orders.
+        liquidate_price: The avg_price of worst loss liquidate orders.
+        open_times: The times to divide.
+        fee_rate: The fee rate
+        scale: The next open_amount/this open_amount, default is 1.
+        settle_mode: settle with which currency.
+    Returns:
+        amount array of each open times.
+    """
+
+    real_open_price = real_number(open_price)
+    real_liquidate_price = real_number(liquidate_price) * (1.0 + slippage)
+    worst_real_price = min(real_open_price, real_liquidate_price)
+
+    # 粗略的开仓张数
+    open_amount = asset_total * position * worst_real_price * (1.0 + slippage) / unit_amount
+
+    # 计算净资产
+    max_open_fee = open_amount * unit_amount * position * -abs(fee_rate)
+    max_liquidate_fee = open_amount * unit_amount * position * -abs(fee_rate)
+
+    if settle_mode == SETTLE_MODE_BASIS:
+        max_open_fee /= real_open_price
+        max_liquidate_fee /= real_liquidate_price
+
+    asset_net = asset_total + max_open_fee + max_liquidate_fee
+    open_amount = asset_net * position * worst_real_price * (1.0 + slippage) / unit_amount
+
+    amounts: List[int] = []
+    total_amount = 0
+    total_scale = scale * open_times
+    if scale != 1.0:
+        total_scale = (1 - math.pow(scale, open_times)) / (1 - scale)
+
+    for i in range(open_times):
+        amount = int(open_amount * math.pow(scale, i) / total_scale)
+        total_amount += amount
+        amounts.append(amount)
+
+    real_loss_asset = abs(total_amount * unit_amount * (real_liquidate_price - real_open_price))
+    real_loss_asset = real_loss_asset / real_open_price
+
+    if settle_mode == SETTLE_MODE_BASIS:
+        real_loss_asset /= real_liquidate_price
+
+    max_loss_asset = abs(max_rel_loss_ratio * asset_net * position)  # 相对于设置的position亏损最大资产值
     if real_loss_asset > max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
         return [int(max_loss_asset / real_loss_asset * amount) for amount in amounts], max_loss_asset / real_loss_asset
 

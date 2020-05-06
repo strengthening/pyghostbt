@@ -143,7 +143,7 @@ def get_amount_and_pdr_v1(
         open_times: int = 3,
         fee_rate: float = -0.0005,
         scale: float = 1.0,
-        settle_mode: str = SETTLE_MODE_BASIS,
+        settle_mode: int = SETTLE_MODE_BASIS,
 ) -> (List[int], float):
     """Get the open amount array.
 

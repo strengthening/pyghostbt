@@ -105,7 +105,7 @@ class Strategy(Runtime):
             mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
         )
 
-        m = moment.get(timestamp).to("Asia/Shanghai").floor("day")
+        m = moment.get(timestamp).to(self.get("timezone") or "Asia/Shanghai").floor("day")
 
         query_sql = """
         SELECT id FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
@@ -694,23 +694,42 @@ class Strategy(Runtime):
             mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
         )
 
-        query_sql = """
-        SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND contract_type = ? AND strategy = ?
-         AND wait_start_timestamp >= ? AND wait_start_timestamp < ? AND status != ?""".format(table_name)
-        query_param = (
-            self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
-            start_timestamp, finish_timestamp, INSTANCE_STATUS_WAITING,
-        )
-
-        if self["mode"] == MODE_BACKTEST:
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
             query_sql = """
-                    SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND contract_type = ?
-                    AND strategy = ? AND wait_start_timestamp >= ? AND wait_start_timestamp < ?
-                    AND backtest_id = ? AND status != ?""".format(table_name)
-
+            SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND contract_type = ? AND strategy = ?
+             AND wait_start_timestamp >= ? AND wait_start_timestamp < ? AND status != ?""".format(table_name)
             query_param = (
                 self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
-                start_timestamp, finish_timestamp, self["backtest_id"], INSTANCE_STATUS_WAITING,
+                start_timestamp, finish_timestamp, INSTANCE_STATUS_WAITING,
             )
 
+            if self["mode"] == MODE_BACKTEST:
+                query_sql = """
+                        SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND contract_type = ?
+                        AND strategy = ? AND wait_start_timestamp >= ? AND wait_start_timestamp < ?
+                        AND backtest_id = ? AND status != ?""".format(table_name)
+
+                query_param = (
+                    self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
+                    start_timestamp, finish_timestamp, self["backtest_id"], INSTANCE_STATUS_WAITING,
+                )
+        else:
+            query_sql = """
+            SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ?
+             AND wait_start_timestamp >= ? AND wait_start_timestamp < ? AND status != ?""".format(table_name)
+            query_param = (
+                self["symbol"], self["exchange"], self["strategy"],
+                start_timestamp, finish_timestamp, INSTANCE_STATUS_WAITING,
+            )
+
+            if self["mode"] == MODE_BACKTEST:
+                query_sql = """
+                        SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ?
+                        AND wait_start_timestamp >= ? AND wait_start_timestamp < ?
+                        AND backtest_id = ? AND status != ?""".format(table_name)
+
+                query_param = (
+                    self["symbol"], self["exchange"], self["strategy"],
+                    start_timestamp, finish_timestamp, self["backtest_id"], INSTANCE_STATUS_WAITING,
+                )
         return conn.query(query_sql, query_param)

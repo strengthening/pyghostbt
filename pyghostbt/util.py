@@ -143,7 +143,7 @@ def get_amount_and_pdr_v1(
         open_times: int = 3,
         fee_rate: float = -0.0005,
         scale: float = 1.0,
-        settle_mode: str = SETTLE_MODE_BASIS,
+        settle_mode: int = SETTLE_MODE_BASIS,
 ) -> (List[int], float):
     """Get the open amount array.
 
@@ -168,28 +168,70 @@ def get_amount_and_pdr_v1(
     Returns:
         amount array of each open times.
     """
-
-    real_open_price = real_number(open_price)
-    real_liquidate_price = real_number(liquidate_price) * (1.0 + slippage)
-    worst_real_price = min(real_open_price, real_liquidate_price)
-
-    # 粗略的开仓张数
-    open_amount = asset_total * position * worst_real_price * (1.0 + slippage) / unit_amount
-
-    # 计算净资产
-    max_open_fee = open_amount * unit_amount * position * -abs(fee_rate)
-    max_liquidate_fee = open_amount * unit_amount * position * -abs(fee_rate)
-
     if settle_mode == SETTLE_MODE_BASIS:
-        max_open_fee /= real_open_price
-        max_liquidate_fee /= real_liquidate_price
+        return __amount_and_pdr_basis(
+            asset_total=asset_total,
+            max_rel_loss_ratio=max_rel_loss_ratio,
+            position=position,
+            unit_amount=unit_amount,
+            slippage=slippage,
+            open_price=open_price,
+            liquidate_price=liquidate_price,
+            open_times=open_times,
+            fee_rate=fee_rate,
+            scale=scale,
+        )
 
+    return __amount_and_pdr_counter(
+        asset_total=asset_total,
+        max_rel_loss_ratio=max_rel_loss_ratio,
+        position=position,
+        # unit_amount=unit_amount,
+        slippage=slippage,
+        open_price=open_price,
+        liquidate_price=liquidate_price,
+        open_times=open_times,
+        fee_rate=fee_rate,
+        scale=scale,
+    )
+
+
+# 以basis为基准的计价。
+def __amount_and_pdr_basis(
+        asset_total: float = None,
+        max_rel_loss_ratio: float = None,
+        position: float = None,
+        unit_amount: int = None,
+        slippage: float = None,
+        open_price: int = None,
+        liquidate_price: int = None,
+        open_times: int = None,
+        fee_rate: float = None,
+        scale: float = None,
+) -> (List[int], float):
+    real_open_slippage = real_number(open_price) * slippage
+    real_open_price = real_number(open_price) + real_open_slippage
+    # 止损时要考虑open时的滑点，造成了平仓价格也收到影响。
+    real_loss_price = real_number(liquidate_price) + real_open_slippage
+    # 加入平仓时的滑点。
+    real_loss_price *= (1 - slippage)
+    real_worst_price = min(real_open_price, real_loss_price)
+    # 粗略的开仓张数
+    open_amount = asset_total * position * real_worst_price / unit_amount
+
+    # 计算出粗略的费用手续费。
+    max_open_fee = open_amount * unit_amount * -abs(fee_rate) / real_open_price
+    max_liquidate_fee = open_amount * unit_amount * -abs(fee_rate) / real_loss_price
+
+    # 剔除手续费之后的资产净值。
     asset_net = asset_total + max_open_fee + max_liquidate_fee
-    open_amount = asset_net * position * worst_real_price * (1.0 + slippage) / unit_amount
+    # 精准计算开仓数量。
+    open_amount = asset_net * position * real_worst_price / unit_amount
 
     amounts: List[int] = []
     total_amount = 0
     total_scale = scale * open_times
+    # 等比数列计算公式。
     if scale != 1.0:
         total_scale = (1 - math.pow(scale, open_times)) / (1 - scale)
 
@@ -198,16 +240,65 @@ def get_amount_and_pdr_v1(
         total_amount += amount
         amounts.append(amount)
 
-    real_loss_asset = abs(total_amount * unit_amount * (real_liquidate_price - real_open_price))
-    real_loss_asset = real_loss_asset / real_open_price
-
-    if settle_mode == SETTLE_MODE_BASIS:
-        real_loss_asset /= real_liquidate_price
+    real_loss_asset = abs(total_amount * unit_amount * (real_loss_price - real_open_price))
+    real_loss_asset /= real_open_price
+    real_loss_asset /= real_loss_price
 
     max_loss_asset = abs(max_rel_loss_ratio * asset_net * position)  # 相对于设置的position亏损最大资产值
     if real_loss_asset > max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
-        return [int(max_loss_asset / real_loss_asset * amount) for amount in amounts], max_loss_asset / real_loss_asset
+        pdr = max_loss_asset / real_loss_asset
+        return [int(pdr * a) for a in amounts], pdr
+    return amounts, 1.0
 
+
+# 以counter为基准的计价。
+def __amount_and_pdr_counter(
+        asset_total: float = None,
+        max_rel_loss_ratio: float = None,
+        position: float = None,
+        slippage: float = None,
+        open_price: int = None,
+        liquidate_price: int = None,
+        open_times: int = None,
+        fee_rate: float = None,
+        scale: float = None,
+) -> (List[int], float):
+    real_open_slippage = real_number(open_price) * slippage
+    real_open_price = real_number(open_price) + real_open_slippage
+    # 止损时要考虑open时的滑点，造成了平仓价格也收到影响。
+    real_loss_price = real_number(liquidate_price) + real_open_slippage
+    # 加入平仓时的滑点。
+    real_loss_price *= (1 - slippage)
+
+    # 粗略的开仓张数
+    open_amount = asset_total * position / real_open_price
+
+    # 计算出粗略的费用手续费。
+    open_fee = open_amount * real_open_price * -abs(fee_rate)
+    liquidate_fee = open_amount * real_loss_price * -abs(fee_rate)
+
+    # 剔除手续费之后的资产净值。
+    asset_net = asset_total + open_fee + liquidate_fee
+    # 精准计算开仓数量。
+    open_amount = asset_net * position / real_open_price
+
+    amounts: List[int] = []
+    total_amount = 0
+    total_scale = scale * open_times
+    # 等比数列计算公式。
+    if scale != 1.0:
+        total_scale = (1 - math.pow(scale, open_times)) / (1 - scale)
+
+    for i in range(open_times):
+        amount = standard_number(open_amount * math.pow(scale, i) / total_scale)
+        total_amount += amount
+        amounts.append(amount)
+
+    real_loss_asset = abs(total_amount * (real_loss_price - real_open_price))
+    max_loss_asset = abs(max_rel_loss_ratio * asset_net * position)  # 相对于设置的position亏损最大资产值
+    if real_loss_asset > max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
+        pdr = max_loss_asset / real_loss_asset
+        return [int(pdr * a) for a in amounts], pdr
     return amounts, 1.0
 
 

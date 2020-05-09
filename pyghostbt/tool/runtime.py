@@ -37,8 +37,9 @@ runtime_input = {
             "type": "string",
         },
         "contract_type": {
-            "type": "string",
+            "type": ["null", "string"],
             "enum": [
+                None,
                 CONTRACT_TYPE_THIS_WEEK,
                 CONTRACT_TYPE_NEXT_WEEK,
                 CONTRACT_TYPE_QUARTER,
@@ -46,11 +47,11 @@ runtime_input = {
         },
         "unit_amount": {
             "type": "integer",
-            "enum": [10, 100],
+            "enum": [1, 10, 100],
         },
         "lever": {
             "type": "integer",
-            "enum": [10, 20],
+            "enum": [1, 10, 20],
         },
         "interval": {
             "type": "string",

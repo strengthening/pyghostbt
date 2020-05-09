@@ -288,13 +288,12 @@ def __amount_and_pdr_counter(
     # 等比数列计算公式。
     if scale != 1.0:
         total_scale = (1 - math.pow(scale, open_times)) / (1 - scale)
-
     for i in range(open_times):
         amount = standard_number(open_amount * math.pow(scale, i) / total_scale)
         total_amount += amount
         amounts.append(amount)
 
-    real_loss_asset = abs(total_amount * (real_loss_price - real_open_price))
+    real_loss_asset = abs(real_number(total_amount) * (real_loss_price - real_open_price))
     max_loss_asset = abs(max_rel_loss_ratio * asset_net * position)  # 相对于设置的position亏损最大资产值
     if real_loss_asset > max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
         pdr = max_loss_asset / real_loss_asset

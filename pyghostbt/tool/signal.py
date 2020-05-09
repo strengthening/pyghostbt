@@ -21,8 +21,8 @@ signal_input = {
             "minLength": 1,
         },
         "contract_type": {
-            "type": "string",
-            "enum": [CONTRACT_TYPE_THIS_WEEK, CONTRACT_TYPE_NEXT_WEEK, CONTRACT_TYPE_QUARTER, CONTRACT_TYPE_NONE],
+            "type": ["null", "string"],
+            "enum": [None, CONTRACT_TYPE_THIS_WEEK, CONTRACT_TYPE_NEXT_WEEK, CONTRACT_TYPE_QUARTER, CONTRACT_TYPE_NONE],
         },
         "db_name": {
             "type": "string",

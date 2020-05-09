@@ -103,12 +103,15 @@ class Backtest(Strategy):
             candles_kv: Dict[int, Dict[int, dict]],
             instances: List[dict],
     ) -> List[dict]:
+        if len(candles_kv) == 0:
+            return []
+
         contracts_kv: Dict[int, List[dict]] = {}  # record due_timestamp with the candles
         flag = 0
         candle_timestamps = sorted(candles_kv.keys(), reverse=True)
         for timestamp in candle_timestamps:
             for instance in instances:
-                # 说明instance中有些contract的candle数据没有，放弃此
+                # 说明instance中有些contract的candle数据没有，放弃此candle组。
                 if instance["order"]["due_timestamp"] not in candles_kv[timestamp]:
                     break
             else:
@@ -124,10 +127,10 @@ class Backtest(Strategy):
         for instance in instances:
             the_candles = contracts_kv.get(instance["order"]["due_timestamp"])
             if instance["order"]["place_type"] == ORDER_PLACE_TYPE_L_SWAP:
-                if flag < 15:  # 说明有超过15个蜡烛数据
+                if flag < 15:  # 没有超过15个蜡烛数据不进行匹配
                     continue
                 l_price = the_candles[0]["close"]
-                l_avg_price = sum([candle["close"] for candle in the_candles[:15]]) / 15
+                l_avg_price = sum([c["close"] for c in the_candles[:15]]) / 15
                 l_swap_instance = instance
                 l_swap_instance["order"]["price"] = l_price  # add the candle close price to order
                 l_swap_instance["order"]["place_timestamp"] = the_candles[0]["timestamp"]
@@ -135,10 +138,10 @@ class Backtest(Strategy):
                 l_swap_instance["order"]["deal_timestamp"] = the_candles[0]["timestamp"]
                 l_swap_instance["order"]["deal_datetime"] = the_candles[0]["date"]
             elif instance["order"]["place_type"] == ORDER_PLACE_TYPE_O_SWAP:
-                if flag < 15:  # 说明有超过15个蜡烛数据
+                if flag < 15:  # 没有超过15个蜡烛数据不进行匹配
                     continue
                 o_price = the_candles[0]["close"]
-                o_avg_price = sum([candle["close"] for candle in the_candles[:15]]) / 15
+                o_avg_price = sum([c["close"] for c in the_candles[:15]]) / 15
                 o_swap_instance = instance
                 o_swap_instance["order"]["price"] = o_price
                 o_swap_instance["order"]["place_timestamp"] = the_candles[0]["timestamp"]
@@ -146,7 +149,7 @@ class Backtest(Strategy):
                 o_swap_instance["order"]["deal_timestamp"] = the_candles[0]["timestamp"]
                 o_swap_instance["order"]["deal_datetime"] = the_candles[0]["date"]
             else:
-                # 除了swap的订单进行匹配。
+                # 除了换仓的订单进行匹配。
                 the_candle = candles_kv[candle_timestamps[0]].get(instance["order"]["due_timestamp"])
                 if the_candle and self.__compare_candle_with_instance(
                         the_candle,
@@ -179,6 +182,27 @@ class Backtest(Strategy):
         # instance 没触发
         return {}
 
+    def _back_test_by_min_kline1(
+            self,
+            start_timestamp: int,
+            finish_timestamp: int,
+            instances: List[Dict] = None,
+            standard: bool = True,
+    ) -> List[Dict]:
+        candles = self._kline.query_range(
+            start_timestamp,
+            finish_timestamp,
+            KLINE_INTERVAL_1MIN,
+            standard=standard
+        )
+        # instance 触发了
+        for candle in candles:
+            for instance in instances:
+                if self.__compare_candle_with_instance(candle, instance):
+                    return [instance]
+        # instance 没触发
+        return []
+
     def _back_test_swap_by_min_kline(
             self,
             start_timestamp: int,
@@ -186,6 +210,9 @@ class Backtest(Strategy):
             instances: list = None,
             standard: bool = True,
     ) -> List[Dict]:
+        if instances is None or len(instances) == 0:
+            return []
+
         candles = self._kline.query_range_contracts(
             start_timestamp,
             finish_timestamp,
@@ -198,19 +225,18 @@ class Backtest(Strategy):
         last_timestamp = 0
 
         for candle in candles:
-            if len(frag_candles_kv) >= 15 and candle["timestamp"] != last_timestamp:
+            # 出现新的candle组时，进行比较一轮
+            if candle["timestamp"] != last_timestamp:
                 tmp_instances = self.__compare_candles_kv_with_instances(frag_candles_kv, instances)
                 if tmp_instances:
                     break
-
-            if candle["timestamp"] != last_timestamp:
                 frag_candles_kv[candle["timestamp"]] = {}
 
             last_timestamp = candle["timestamp"]
             frag_candles_kv[candle["timestamp"]][candle["due_timestamp"]] = candle
         else:
-            if len(frag_candles_kv) >= 15:
-                tmp_instances = self.__compare_candles_kv_with_instances(frag_candles_kv, instances)
+            # 最后frag_candles_kv彻底组装完成以后，再进行匹配
+            tmp_instances = self.__compare_candles_kv_with_instances(frag_candles_kv, instances)
         return tmp_instances
 
     def _back_test_by_day_kline(
@@ -276,7 +302,7 @@ class Backtest(Strategy):
         else:
             conn.execute(
                 "UPDATE {trade_type}_instance_{mode} SET symbol = ?, exchange = ?,"
-                " strategy = ?, status = ?, `interval` = ?,"
+                " strategy = ?, status = ?,"
                 " wait_start_timestamp = ?, wait_start_datetime = ?,"
                 " wait_finish_timestamp = ?, wait_finish_datetime = ?,"
                 " open_start_timestamp = ?, open_start_datetime = ?,"
@@ -288,7 +314,7 @@ class Backtest(Strategy):
                 " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
                 (
                     self["symbol"], self["exchange"],
-                    self["strategy"], self["status"], self["interval"],
+                    self["strategy"], self["status"],
                     self["wait_start_timestamp"], self["wait_start_datetime"],
                     self["wait_finish_timestamp"], self["wait_finish_datetime"],
                     self["open_start_timestamp"], self["open_start_datetime"],
@@ -304,10 +330,7 @@ class Backtest(Strategy):
             order: CommonOrder = self["order"]
 
         order.deal(slippage=slippage, fee=fee)
-        order.save(
-            check=True,
-            raw_order_data=json.dumps(self),
-        )
+        order.save(check=True, raw_order_data=json.dumps(self))
 
         param: Param = self["param"]
         param.save(self["id"])
@@ -323,7 +346,7 @@ class Backtest(Strategy):
         Returns:
             The next stage starting timestamp.
         """
-        (_, _, _, _, opening_amounts, _) = self._analysis_orders(due_ts)
+        (_, _, _, _, _, opening_amounts, _) = self._analysis_orders1(due_ts)
         instance_status = INSTANCE_STATUS_LIQUIDATING
         for ts in opening_amounts:
             if opening_amounts[ts] > 0:
@@ -353,7 +376,7 @@ class Backtest(Strategy):
         place_timestamp = self["open_expired_timestamp"]
 
         # 步骤一： 计算需要结算的损益
-        _, settle_pnl = self._settle_pnl()
+        _, settle_pnl = self._settle_pnl(settle_mode=self["settle_mode"])
 
         # 步骤二： 解冻并结算。
         asset.unfreeze_and_settle(
@@ -365,13 +388,16 @@ class Backtest(Strategy):
 
         # 步骤三： 更新到对应的instance上。
         conn = Conn(self["db_name"])
-        conn.execute(
-            "UPDATE {}_instance_backtest SET total_pnl_asset = ? WHERE id = ?".format(self["trade_type"]),
-            (
-                settle_pnl,
-                self["id"],
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            conn.execute(
+                "UPDATE {}_instance_backtest SET total_pnl_asset = ? WHERE id = ?".format(self["trade_type"]),
+                (settle_pnl, self["id"]),
             )
-        )
+        else:
+            conn.execute(
+                "UPDATE {}_instance_backtest SET asset_pnl = ? WHERE id = ?".format(self["trade_type"]),
+                (settle_pnl, self["id"]),
+            )
         return 0
 
     # 返回结果为该阶段结束时间，如果返回0表示该阶段没有触发

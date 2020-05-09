@@ -34,11 +34,13 @@ asset_input = {
                 EXCHANGE_OKEX,
                 EXCHANGE_HUOBI,
                 EXCHANGE_BINANCE,
+                EXCHANGE_COINBASE,
             ],
         },
         "contract_type": {
-            "type": "string",
+            "type": ["null", "string"],
             "enum": [
+                None,
                 CONTRACT_TYPE_THIS_WEEK,
                 CONTRACT_TYPE_NEXT_WEEK,
                 CONTRACT_TYPE_QUARTER,
@@ -175,7 +177,7 @@ class CommonAsset(Asset):
         conn.insert(
             """
             INSERT INTO {} (symbol, exchange, settle_mode, backtest_id, subject, amount,
-            position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.format(self._account_flow_table_name),
             (
                 self._symbol, self._exchange, self._settle_mode, self._backtest_id,
@@ -465,12 +467,22 @@ class CommonAsset(Asset):
         if result is None:
             raise RuntimeError("you must init_amount before load the asset. ")
 
-        self["total_asset"] = result["total_asset"]
-        self["sub_asset"] = result["sub_asset"]
-        self["sub_freeze_asset"] = result["sub_freeze_asset"]
-        self["total_position"] = result["total_position"]
-        self["sub_position"] = result["sub_position"]
-        self["sub_freeze_position"] = result["sub_freeze_position"]
+
+        self["asset_total"] = result.get("total_asset") or result.get("asset_total")
+        self["asset_sub"] = result.get("sub_asset") or result.get("asset_sub")
+        self["asset_freeze"] = result.get("sub_freeze_asset") or result.get("asset_freeze")
+
+        # 等待删除，等统一好字段之后。
+        self["total_asset"] = result.get("total_asset") or result.get("asset_total")
+        self["sub_asset"] = result.get("sub_asset") or result.get("asset_sub")
+        self["sub_freeze_asset"] = result.get("sub_freeze_asset") or result.get("asset_freeze")
+        self["total_position"] = result.get("total_position") or result.get("position_total")
+        self["sub_position"] = result.get("sub_position") or result.get("position_sub")
+        self["sub_freeze_position"] = result.get("sub_freeze_position") or result.get("position_freeze")
+
+        self["position_total"] = result.get("total_position") or result.get("position_total")
+        self["position_sub"] = result.get("sub_position") or result.get("position_sub")
+        self["position_freeze"] = result.get("sub_freeze_position") or result.get("position_freeze")
         return self
 
 

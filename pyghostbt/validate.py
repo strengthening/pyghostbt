@@ -28,8 +28,9 @@ INSTANCE_VALIDATE = {
             "type": "string",
         },
         "contract_type": {
-            "type": "string",
+            "type": ["null", "string"],
             "enum": [
+                None,
                 CONTRACT_TYPE_THIS_WEEK,
                 CONTRACT_TYPE_NEXT_WEEK,
                 CONTRACT_TYPE_QUARTER,
@@ -66,7 +67,7 @@ INSTANCE_VALIDATE = {
         },
         "lever": {
             "type": "integer",
-            "enum": [10, 20],
+            "enum": [1, 10, 20],
         },
         "total_asset": {
             "type": "number",

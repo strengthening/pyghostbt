@@ -21,8 +21,8 @@ kline_input = {
             "enum": [EXCHANGE_OKEX, EXCHANGE_HUOBI, EXCHANGE_BINANCE, EXCHANGE_BITSTAMP, EXCHANGE_COINBASE],
         },
         "contract_type": {
-            "type": "string",
-            "enum": [CONTRACT_TYPE_THIS_WEEK, CONTRACT_TYPE_NEXT_WEEK, CONTRACT_TYPE_QUARTER],
+            "type": ["null", "string"],
+            "enum": [None, CONTRACT_TYPE_THIS_WEEK, CONTRACT_TYPE_NEXT_WEEK, CONTRACT_TYPE_QUARTER, CONTRACT_TYPE_NONE],
         },
         "db_name": {
             "type": "string",
@@ -37,7 +37,6 @@ class Kline(object):
 
     def __init__(self, **kwargs):
         super().__init__()
-
         validate(instance=kwargs, schema=kline_input)
 
         self.symbol = kwargs.get("symbol")
@@ -176,5 +175,5 @@ class Kline(object):
                 finish_timestamp,
                 interval,
                 standard=standard,
-                due_timestamp=candles[-1]["due_timestamp"],
+                due_timestamp=candles[-1].get("due_timestamp") or 0,
             )

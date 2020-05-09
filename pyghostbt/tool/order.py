@@ -31,7 +31,7 @@ order_input = {
 
 order_config = {
     "type": "object",
-    "required": ["trade_type", "db_name", "mode"],
+    "required": ["trade_type", "db_name", "mode", "settle_mode"],
     "properties": {
         "trade_type": {
             "type": "string",
@@ -43,6 +43,10 @@ order_config = {
         "mode": {
             "type": "string",
             "enum": [MODE_ONLINE, MODE_OFFLINE, MODE_BACKTEST, MODE_STRATEGY],
+        },
+        "settle_mode": {
+            "type": "integer",
+            "enum": [SETTLE_MODE_BASIS, SETTLE_MODE_COUNTER],
         }
     }
 }
@@ -58,14 +62,19 @@ class CommonOrder(dict):
 
         self._trade_type = kwargs.get("trade_type")
         self._mode = kwargs.get("mode")
+        self._settle_mode = kwargs.get("settle_mode") or SETTLE_MODE_BASIS
         self._db_name = kwargs.get("db_name")
         self._table_name = self.__TABLE_NAME_FORMAT__.format(
             trade_type=self._trade_type,
             mode=MODE_BACKTEST if self._mode == MODE_BACKTEST else MODE_STRATEGY,
         )
 
+        self["fee"] = order.get("fee") or 0.0
+        self["cancel_timestamp"] = order.get("cancel_timestamp") or 0
+        self["cancel_datetime"] = order.get("cancel_datetime")
+
     # 假设已经成交
-    def deal(self, slippage=0.01, fee=-0.0005, settle_mode=SETTLE_MODE_BASIS):
+    def deal(self, slippage=0.01, fee=-0.0005):
         """
         update the order dict with slippage, fee at diff settle mode.
         :param slippage: 滑点比例，默认1%
@@ -86,7 +95,7 @@ class CommonOrder(dict):
             raise RuntimeError("error order type")
 
         # 计算 fee
-        if settle_mode == SETTLE_MODE_BASIS:
+        if self._settle_mode == SETTLE_MODE_BASIS:
             self["fee"] = real_number(self["deal_amount"]) * fee
         else:
             self["fee"] = real_number(self["deal_amount"]) * real_number(self["avg_price"]) * fee
@@ -132,7 +141,8 @@ class CommonOrder(dict):
                     self["instance_id"], self["sequence"], self["place_type"], self["type"], self["price"],
                     self["amount"], self["avg_price"], self["deal_amount"], self["status"], self["lever"],
                     self["fee"], self["symbol"], self["exchange"], self["place_timestamp"], self["place_datetime"],
-                    self["deal_timestamp"], self["deal_datetime"], self["cancel_timestamp"], self["cancel_datetime"],
+                    self["deal_timestamp"], self["deal_datetime"],
+                    self["cancel_timestamp"], self["cancel_datetime"],
                     raw_order_data, raw_market_data,
                 ),
             )
@@ -194,7 +204,7 @@ class CommonOrder(dict):
             " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
             " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ? WHERE id = ?".format(
                 trade_type=self._trade_type,
-                mode= MODE_STRATEGY if self._mode != MODE_BACKTEST else MODE_BACKTEST,
+                mode=MODE_STRATEGY if self._mode != MODE_BACKTEST else MODE_BACKTEST,
             ),
             (
                 open_times, open_fee, open_type, open_place_type,
@@ -317,14 +327,12 @@ class FutureOrder(CommonOrder):
             instance=order,
             schema=future_order_init,
         )
-        self["fee"] = order.get("fee") or 0.0
+
         self["swap_timestamp"] = order.get("swap_timestamp") or 0
         self["swap_datetime"] = order.get("swap_datetime")
-        self["cancel_timestamp"] = order.get("cancel_timestamp") or 0
-        self["cancel_datetime"] = order.get("cancel_datetime")
 
     # 假设已经成交
-    def deal(self, slippage=0.01, fee=-0.0005, settle_mode=SETTLE_MODE_BASIS):
+    def deal(self, slippage=0.01, fee=-0.0005):
         # 回测时假设已经成交。
         self["deal_amount"] = self["amount"]
         self["status"] = ORDER_STATUS_FINISH
@@ -337,13 +345,19 @@ class FutureOrder(CommonOrder):
         elif self["type"] == ORDER_TYPE_OPEN_SHORT or self["type"] == ORDER_TYPE_LIQUIDATE_LONG:
             self["avg_price"] = int(self["price"] * (1 - slippage))
         else:
-            raise RuntimeError("error order type")
+            raise RuntimeError("Error order type")
 
         # 计算 fee
-        if settle_mode == SETTLE_MODE_BASIS:
-            self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000 / self["avg_price"]
+        if self._trade_type == TRADE_TYPE_FUTURE and self._settle_mode == SETTLE_MODE_BASIS:
+            self["fee"] = self["amount"] * self["unit_amount"] * fee / real_number(self["avg_price"])
+        elif self._trade_type == TRADE_TYPE_FUTURE and self._settle_mode == SETTLE_MODE_COUNTER:
+            self["fee"] = self["amount"] * self["unit_amount"] * fee
+        elif self._trade_type != TRADE_TYPE_FUTURE and self._settle_mode == SETTLE_MODE_BASIS:
+            self["fee"] = real_number(self["amount"]) * fee
+        elif self._trade_type != TRADE_TYPE_FUTURE and self._settle_mode == SETTLE_MODE_COUNTER:
+            self["fee"] = real_number(self["amount"]) * real_number(self["avg_price"]) * fee
         else:
-            self["fee"] = self["amount"] * self["unit_amount"] * fee * 100000000
+            raise RuntimeError("Error trade_type or settle_mode")
 
     def save(self, check: bool = False, raw_order_data: str = None, raw_market_data: str = None):
         if check:

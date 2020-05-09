@@ -243,6 +243,18 @@ class Strategy(Runtime):
                 self["symbol"], self["exchange"], self["contract_type"],
                 self["strategy"], INSTANCE_STATUS_WAITING, 0,
             )
+        elif self["mode"] == MODE_BACKTEST:
+            query_sql = """
+            SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ?
+             AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
+            """
+            insert_sql = """
+            INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status,
+             wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?) 
+            """
+            params = (
+                self["symbol"], self["exchange"], self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
+            )
 
         # 线上环境中应该查找对应的instance记录来确定最新的 id
         one = conn.query_one(
@@ -542,16 +554,16 @@ class Strategy(Runtime):
 
             if order["type"] == ORDER_TYPE_OPEN_LONG:
                 open_amount += order["deal_amount"]
-                open_quota += avg_price * deal_amount
+                open_quota -= avg_price * deal_amount
             elif order["type"] == ORDER_TYPE_OPEN_SHORT:
                 open_amount += order["deal_amount"]
-                open_quota -= avg_price * deal_amount
+                open_quota += avg_price * deal_amount
             elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
                 liquidate_amount += order["deal_amount"]
-                liquidate_quota -= avg_price * deal_amount
+                liquidate_quota += avg_price * deal_amount
             elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
                 liquidate_amount += order["deal_amount"]
-                liquidate_quota += avg_price * deal_amount
+                liquidate_quota -= avg_price * deal_amount
             else:
                 raise RuntimeError("the order type is not right. ")
         if open_amount != liquidate_amount:
@@ -660,6 +672,7 @@ class Strategy(Runtime):
                 trade_type=self["trade_type"],
                 db_name=self["db_name"],
                 mode=self["mode"],
+                settle_mode=self["settle_mode"]
             )
             return instance
 
@@ -673,10 +686,12 @@ class Strategy(Runtime):
                 "sequence": sequence,
                 "price": int(price),
                 "amount": int(amount),
+                "lever": self["lever"],
             },
             trade_type=self["trade_type"],
             db_name=self["db_name"],
             mode=self["mode"],
+            settle_mode=self["settle_mode"]
         )
         return instance
 

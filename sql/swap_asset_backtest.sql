@@ -3,6 +3,7 @@ CREATE TABLE `swap_asset_backtest` (
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
   `settle_mode` tinyint(4) NOT NULL DEFAULT '0' COMMENT '0: basis currency, 1: counter currency',
+  `settle_currency` varchar(20) NOT NULL DEFAULT '' COMMENT 'the settle currency',
   `backtest_id` varchar(32) NOT NULL COMMENT '单次回测的标识',
   `asset_total` decimal(20,8) COMMENT '锚定的总资产',
   `asset_sub` decimal(20,8) COMMENT '永续合约子账户的资产',
@@ -15,7 +16,8 @@ CREATE TABLE `swap_asset_backtest` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `symbol` (`symbol`, `exchange`, `settle_mode`, `timestamp`, `backtest_id`),
+  UNIQUE KEY `symbol` (`symbol`, `exchange`, `settle_mode`, `timestamp`, `settle_currency`, `backtest_id`),
+  KEY `exchange` (`exchange`, `settle_mode`, `settle_currency`, `timestamp`, `backtest_id`),
   KEY `timestamp` (`timestamp`),
   KEY `datetime` (`datetime`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

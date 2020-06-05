@@ -109,6 +109,17 @@ class Indices(dict):
         )]
 
     @staticmethod
+    def STD(
+            close: List[float],
+            time_period: int = 7,
+    ):
+        return talib.STDDEV(
+            np.array([float(c) for c in close]),
+            timeperiod=time_period,
+            nbdev=1,
+        )
+
+    @staticmethod
     def DT_RANGE(candles: List[dict]):
         return max(
             max([c["high"] for c in candles]) - min([c["close"] for c in candles]),

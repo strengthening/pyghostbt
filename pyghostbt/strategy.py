@@ -194,7 +194,7 @@ class Strategy(Runtime):
                 mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
             ),
             (
-                self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
+                self["symbol"], self["exchange"], self["strategy"],
                 wait_start_timestamp, INSTANCE_STATUS_WAITING,
             ),
         )

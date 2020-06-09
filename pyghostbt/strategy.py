@@ -295,7 +295,8 @@ class Strategy(Runtime):
 
     def get_instances(self, timestamp):
         if self["status"] == INSTANCE_STATUS_WAITING:
-            return self.get_waiting(timestamp)
+            waits, _ = self.get_waiting(timestamp)
+            return waits
         elif self["status"] == INSTANCE_STATUS_OPENING:
             return self.get_opening(timestamp)
         elif self["status"] == INSTANCE_STATUS_LIQUIDATING:

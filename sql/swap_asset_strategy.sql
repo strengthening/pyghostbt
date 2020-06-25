@@ -2,7 +2,7 @@ CREATE TABLE `swap_asset_strategy` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
-  `settle_mode` tinyint(4) NOT NULL DEFAULT '0' COMMENT '0: basis currency, 1: counter currency',
+  `settle_mode` tinyint(4) NOT NULL DEFAULT '1' COMMENT '1: basis currency mode, 2: counter currency mode',
   `settle_currency` varchar(20) NOT NULL DEFAULT '' COMMENT 'the settle currency',
   `asset_total` decimal(20,8) COMMENT '锚定的总资产',
   `asset_sub` decimal(20,8) COMMENT '永续合约子账户的资产',

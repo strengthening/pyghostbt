@@ -33,7 +33,6 @@ signal_input = {
 
 
 class Signal(object):
-    __cache = {}
 
     def __init__(self, **kwargs):
         validate(instance=kwargs, schema=signal_input)
@@ -43,12 +42,7 @@ class Signal(object):
         self._contract_type = kwargs.get("contract_type") or CONTRACT_TYPE_NONE
         self._db_name = kwargs.get("db_name", "default")
 
-        # self.__cache = {}
-
     def get_metadata(self, signal_name: str) -> dict:
-        if signal_name in Signal.__cache:
-            return Signal.__cache[signal_name]
-
         conn = Conn(self._db_name)
         metadata = conn.query_one(
             "SELECT * FROM signal_metadata"
@@ -57,7 +51,6 @@ class Signal(object):
         )
         if metadata is None:
             raise RuntimeError("Can not find the meta in database. ")
-        Signal.__cache[signal_name] = metadata
         return metadata
 
     def in_signal(self, signal_name: str, timestamp: int) -> bool:

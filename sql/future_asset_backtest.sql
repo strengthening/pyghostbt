@@ -2,6 +2,7 @@ CREATE TABLE `future_asset_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
+  `settle_mode` tinyint(4) NOT NULL DEFAULT '1' COMMENT '1: basis currency, 2: counter currency',
   `backtest_id` varchar(32) NOT NULL COMMENT '单次回测的标识',
   `total_asset` decimal(20,8) COMMENT '总账户资产数量，资金账户+余币宝+期货账户开仓订单盈利情况都算成0的情况（total_avail_balance + realized_pnl）',
   `sub_asset` decimal(20,8) COMMENT '子账户资产数量，期货账户开仓订单盈利情况都算成0的情况（total_avail_balance + realized_pnl）',

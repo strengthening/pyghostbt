@@ -1,5 +1,5 @@
 from jsonschema import validate
-# from typing import List
+from typing import List
 from typing import Dict
 from pyanalysis.mysql import Conn
 from pyghostbt.const import *
@@ -64,6 +64,17 @@ class Signal(object):
             (signal_id, timestamp, timestamp),
         )
         return not (dataset is None)
+
+    def previous_signals(self, signal_name: str, timestamp: int) -> List[dict]:
+        meta = self.get_metadata(signal_name)
+        signal_id = meta["signal_id"]
+        conn = Conn(self._db_name)
+        dataset = conn.query(
+            "SELECT * FROM signal_dataset WHERE signal_id = ? AND finish_timestamp < ?"
+            " ORDER BY finish_timestamp DESC LIMIT 5",
+            (signal_id, timestamp),
+        )
+        return dataset
 
     def get_value(self, signal_name: str, timestamp: int) -> Dict:
         signal_id = self.get_metadata(signal_name)["signal_id"]

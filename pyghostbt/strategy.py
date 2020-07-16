@@ -650,6 +650,21 @@ class Strategy(Runtime):
     ):
 
         instance = self.copy()
+        param: Param = Param(
+            self["param"].copy(),
+            trade_type=self["trade_type"],
+            db_name=self["db_name"],
+            mode=self["mode"],
+        )
+        indices: Indices = Indices(
+            self["indices"].copy(),
+            trade_type=self["trade_type"],
+            db_name=self["db_name"],
+            mode=self["mode"],
+        )
+        instance["param"] = param
+        instance["indices"] = indices
+
         if self["trade_type"] == TRADE_TYPE_FUTURE:
             due_datetime = moment.get(due_timestamp).to(
                 self["timezone"] or "Asia/Shanghai",

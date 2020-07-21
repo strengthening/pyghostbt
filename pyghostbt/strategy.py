@@ -534,6 +534,75 @@ class Strategy(Runtime):
             opening_avg_price = opened_quota / opening_amount
         return start_sequence, opened_times, opening_avg_price, opened_prices, opened_amounts, opening_amounts, opening_quota
 
+    def _analysis_orders2(self, due_ts: int) -> tuple:
+        """
+        :param due_ts: the due timestamp now.
+        :return:
+
+            start_sequence: next sequence
+            opening_avg_price: the opening avg price in instance.
+            order price array: the orders price of instance.
+            order amount array: the orders amount of instance.
+            opening_amount map with due_ts: {due_ts: opening_amount}
+            opening_quota map with due_ts: {due_ts: opening_quota}
+
+        """
+
+        orders = self._get_orders()
+        if len(orders) == 0:
+            return -1, 0, 0, 0, {}, {}
+
+        opened_times = 0
+        opened_quota = 0
+        start_sequence = orders[-1]["sequence"] + 1
+        opened_prices = []
+        opened_amounts = []
+
+        # spot swap margin 交易没有due_timestamp的概念，故设置为0
+        if due_ts is None:
+            due_ts = 0
+        opening_amounts, opening_quota = {due_ts: 0}, {due_ts: 0}
+
+        for order in orders:
+            if order.get("status") == ORDER_STATUS_FAIL:
+                return -1, 0, 0, 0, {}, {}
+            if order.get("status") == ORDER_STATUS_UNFINISH:
+                return -1, 0, 0, 0, {}, {}
+
+            order_due_ts = order.get("due_timestamp") or 0
+            if order_due_ts not in opening_amounts:
+                opening_amounts[order_due_ts] = 0
+                opening_quota[order_due_ts] = 0
+
+            if order["type"] in (ORDER_TYPE_OPEN_LONG, ORDER_TYPE_OPEN_SHORT):
+                opening_amounts[order_due_ts] += order["deal_amount"]
+                opening_quota[order_due_ts] += order["deal_amount"] * order["avg_price"]
+                opened_quota += order["deal_amount"] * order["avg_price"]
+                if order["place_type"] != ORDER_PLACE_TYPE_O_SWAP:
+                    opened_prices.append(order["price"])
+                    opened_amounts.append(order["amount"])
+                    opened_times += 1
+            elif order["type"] in (ORDER_TYPE_LIQUIDATE_LONG, ORDER_TYPE_LIQUIDATE_SHORT):
+                opening_amounts[order_due_ts] -= order["deal_amount"]
+                # 已经平仓完毕，则既往不咎。
+                if order["place_type"] != ORDER_PLACE_TYPE_L_SWAP and opening_amounts[order_due_ts] == 0:
+                    opened_quota = 0
+                else:
+                    opened_quota -= order["deal_amount"] * order["avg_price"]
+
+                if opening_amounts[order_due_ts] == 0:
+                    opening_quota[order_due_ts] = 0
+                else:
+                    opening_quota[order_due_ts] -= order["deal_amount"] * order["avg_price"]
+            else:
+                raise RuntimeError("Not found the order type")
+
+        opening_amount = sum([opening_amounts[ts] for ts in opening_amounts])
+        opening_avg_price = 0
+        if opening_amount > 0:
+            opening_avg_price = opened_quota / opening_amount
+        return start_sequence, opened_times, opening_avg_price, opened_prices, opened_amounts, opening_amounts, opening_quota
+
     def _settle_pnl(self, settle_mode=SETTLE_MODE_BASIS) -> Tuple[bool, float]:
         if self["trade_type"] == TRADE_TYPE_FUTURE:
             return self._settle_future_pnl()

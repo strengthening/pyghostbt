@@ -486,7 +486,7 @@ class Strategy(Runtime):
 
         orders = self._get_orders()
         if len(orders) == 0:
-            return -1, 0, 0, 0, {}, {}
+            return -1, 0, 0, [], [], {}, {}
 
         opened_times = 0
         opened_quota = 0
@@ -501,9 +501,9 @@ class Strategy(Runtime):
 
         for order in orders:
             if order.get("status") == ORDER_STATUS_FAIL:
-                return -1, 0, 0, 0, {}, {}
+                return -1, 0, 0, [], [], {}, {}
             if order.get("status") == ORDER_STATUS_UNFINISH:
-                return -1, 0, 0, 0, {}, {}
+                return -1, 0, 0, [], [], {}, {}
 
             order_due_ts = order.get("due_timestamp") or 0
             if order_due_ts not in opening_amounts:
@@ -550,7 +550,7 @@ class Strategy(Runtime):
 
         orders = self._get_orders()
         if len(orders) == 0:
-            return -1, 0, 0, 0, {}, {}
+            return -1, 0, 0, [], [], {}, {}
 
         opened_times = 0
         opened_quota = 0
@@ -565,9 +565,9 @@ class Strategy(Runtime):
 
         for order in orders:
             if order.get("status") == ORDER_STATUS_FAIL:
-                return -1, 0, 0, 0, {}, {}
+                return -1, 0, 0, [], [], {}, {}
             if order.get("status") == ORDER_STATUS_UNFINISH:
-                return -1, 0, 0, 0, {}, {}
+                return -1, 0, 0, [], [], {}, {}
 
             order_due_ts = order.get("due_timestamp") or 0
             if order_due_ts not in opening_amounts:

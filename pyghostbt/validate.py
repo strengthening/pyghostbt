@@ -74,13 +74,6 @@ INSTANCE_VALIDATE = {
         "asset_freeze": {
             "type": "number"
         },
-        "asset_total": {
-            "type": "number",
-            "minimum": 0,
-        },
-        "asset_freeze": {
-            "type": "number"
-        },
         "param_position": {
             "type": "number"
         },

@@ -63,7 +63,7 @@ def get_o_or_l_price(
 
 # pdr is short for position_dilution_ratio
 def get_amount_and_pdr(
-        total_asset: float = None,
+        asset_total: float = None,
         max_rel_loss_ratio: float = None,
         position: float = None,
         unit_amount: int = None,
@@ -77,13 +77,13 @@ def get_amount_and_pdr(
     """Get the open amount array.
 
     The open amount is a complicated calculating process. This func calculate it for worst situation. Why complicated?
-    1. total_asset包含了fee + 保证金。其中fee是损失，所以total_asset并不能当做净值计算open_amount。
+    1. asset_total包含了fee + 保证金。其中fee是损失，所以asset_total并不能当做净值计算open_amount。
     2. 开仓平仓会有滑点，滑点会带来fee的变动，以及open_amount的变动。
 
     故此方法假设，此次交易以最差的情况止损。并在开仓，平仓都有滑点的情况下完成交易。
 
     Args:
-        total_asset: The total asset of the pair
+        asset_total: The total asset of the pair
         max_rel_loss_ratio: The max loss relative 1 position, defined in param.
         position: The position want to open.
         unit_amount: The contract unit amount.
@@ -103,12 +103,12 @@ def get_amount_and_pdr(
     worst_real_price = min(real_open_price, real_liquidate_price)
 
     # 粗略的开仓张数
-    open_amount = total_asset * position * worst_real_price * (1.0 + slippage) / unit_amount
+    open_amount = asset_total * position * worst_real_price * (1.0 + slippage) / unit_amount
 
     # 计算净资产
-    max_open_fee = total_asset * position * fee_rate
+    max_open_fee = asset_total * position * fee_rate
     max_liquidate_fee = open_amount * unit_amount * fee_rate / real_liquidate_price
-    net_asset = total_asset + max_open_fee + max_liquidate_fee
+    net_asset = asset_total + max_open_fee + max_liquidate_fee
     open_amount = net_asset * position * worst_real_price * (1.0 + slippage) / unit_amount
 
     amounts: List[int] = []
@@ -123,7 +123,7 @@ def get_amount_and_pdr(
 
     real_loss_asset = abs(sum_amount * unit_amount * (real_liquidate_price - real_open_price))
     real_loss_asset = real_loss_asset / real_open_price / real_liquidate_price
-    max_loss_asset = abs(max_rel_loss_ratio * total_asset * position)  # 相对于设置的position亏损最大资产值
+    max_loss_asset = abs(max_rel_loss_ratio * asset_total * position)  # 相对于设置的position亏损最大资产值
 
     if real_loss_asset > max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
         return [int(max_loss_asset / real_loss_asset * amount) for amount in amounts], max_loss_asset / real_loss_asset
@@ -148,7 +148,7 @@ def get_amount_and_pdr_v1(
     """Get the open amount array.
 
     The open amount is a complicated calculating process. This func calculate it for worst situation. Why complicated?
-    1. total_asset包含了fee + 保证金。其中fee是损失，所以total_asset并不能当做净值计算open_amount。
+    1. asset_total包含了fee + 保证金。其中fee是损失，所以asset_total并不能当做净值计算open_amount。
     2. 开仓平仓会有滑点，滑点会带来fee的变动，以及open_amount的变动。
 
     故此方法假设，此次交易以最差的情况止损。并在开仓，平仓都有滑点的情况下完成交易。

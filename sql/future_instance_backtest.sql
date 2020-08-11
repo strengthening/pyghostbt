@@ -11,9 +11,9 @@ CREATE TABLE `future_instance_backtest` (
   `interval` varchar(20) NOT NULL DEFAULT '1day' COMMENT 'the strategy logic generate interval: 1min/1hour/4hour/1day/1week',
 
 -- some columns about the asset
-  `total_asset` decimal(20,8) COMMENT 'the total account asset for future',
-  `total_pnl_asset` decimal(20,8) COMMENT 'the total pnl asset at the end',
-  `sub_freeze_asset` decimal(20,8) COMMENT 'the sub account freeze asset for this instance',
+  `asset_total` decimal(20,8) COMMENT 'the total account asset for future',
+  `asset_pnl` decimal(20,8) COMMENT 'the total pnl asset at the end',
+  `asset_freeze` decimal(20,8) COMMENT 'the sub account freeze asset for this instance',
 
   `param_position` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT 'the strategy use account asset scale, sometime you do not want use full margined asset to open',
   `param_max_abs_loss_ratio` decimal(11,6) NOT NULL DEFAULT '0.0' COMMENT '',
@@ -36,7 +36,7 @@ CREATE TABLE `future_instance_backtest` (
 
   `swap_times` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1~9',
   `swap_fee` decimal(20,8) COMMENT '换仓手续费',
-  `swap_pnl_asset` decimal(20,8) COMMENT '换仓损益资产',
+  `swap_asset_pnl` decimal(20,8) COMMENT '换仓损益资产',
 
   `liquidate_type` tinyint(1) NOT NULL DEFAULT '3' COMMENT '3: liquidate_long, 4: liquidate_short',
   `liquidate_place_type` varchar(10) NOT NULL DEFAULT 'b_taker' COMMENT 't_taker t_maker b_taker b_maker o_swap l_swap market',

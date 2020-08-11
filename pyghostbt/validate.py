@@ -5,9 +5,7 @@ INSTANCE_VALIDATE = {
     "type": "object",
     "required": [
         "id", "symbol", "exchange", "strategy", "status", "interval",
-        # remove the require about, cause i need rename the asset.
-        # "total_asset", "sub_freeze_asset",
-        # "asset_total", "asset_freeze",
+        "asset_total", "asset_freeze",
         "param_position", "param_max_abs_loss_ratio",
         "wait_start_timestamp", "wait_start_datetime",
         "wait_finish_timestamp", "wait_finish_datetime",
@@ -69,11 +67,11 @@ INSTANCE_VALIDATE = {
             "type": "integer",
             "enum": [1, 10, 20],
         },
-        "total_asset": {
+        "asset_total": {
             "type": "number",
             "minimum": 0,
         },
-        "sub_freeze_asset": {
+        "asset_freeze": {
             "type": "number"
         },
         "asset_total": {

@@ -429,7 +429,7 @@ class FutureOrder(CommonOrder):
         liquidate_start_datetime, liquidate_finish_datetime = "", ""
         liquidate_type, liquidate_place_type = ORDER_TYPE_LIQUIDATE_LONG, ""
 
-        swap_times, swap_fee, swap_pnl_asset = 0, 0.0, 0
+        swap_times, swap_fee, swap_asset_pnl = 0, 0.0, 0
         swap_contract = {
             "open_amount": 0,
             "open_sum": 0,
@@ -519,10 +519,10 @@ class FutureOrder(CommonOrder):
         if swap_contract["open_amount"] != swap_contract["liquidate_amount"]:
             return
         if swap_contract["open_amount"]:
-            swap_pnl_asset = (swap_contract["open_sum"] + swap_contract["liquidate_sum"]) * self["unit_amount"]
-            swap_pnl_asset = real_number(swap_pnl_asset)
-            swap_pnl_asset /= real_number(swap_contract["open_avg_price"])
-            swap_pnl_asset /= real_number(swap_contract["liquidate_avg_price"])
+            swap_asset_pnl = (swap_contract["open_sum"] + swap_contract["liquidate_sum"]) * self["unit_amount"]
+            swap_asset_pnl = real_number(swap_asset_pnl)
+            swap_asset_pnl /= real_number(swap_contract["open_avg_price"])
+            swap_asset_pnl /= real_number(swap_contract["liquidate_avg_price"])
 
         conn.execute(
             "UPDATE future_instance_backtest SET open_times = ?, open_fee = ?, open_type = ?, open_place_type = ?,"
@@ -530,14 +530,14 @@ class FutureOrder(CommonOrder):
             " liquidate_times = ?, liquidate_fee = ?, liquidate_type = ?, liquidate_place_type = ?,"
             " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
             " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
-            " swap_times = ?, swap_fee = ?, swap_pnl_asset = ? WHERE id = ?",
+            " swap_times = ?, swap_fee = ?, swap_asset_pnl = ? WHERE id = ?",
             (
                 open_times, open_fee, open_type, open_place_type,
                 open_start_timestamp, open_start_datetime, open_finish_timestamp, open_finish_datetime,
                 liquidate_times, liquidate_fee, liquidate_type, liquidate_place_type,
                 liquidate_start_timestamp, liquidate_start_datetime,
                 liquidate_finish_timestamp, liquidate_finish_datetime,
-                swap_times, swap_fee, swap_pnl_asset, self["instance_id"],
+                swap_times, swap_fee, swap_asset_pnl, self["instance_id"],
             ),
         )
 

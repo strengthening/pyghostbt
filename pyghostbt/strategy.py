@@ -310,12 +310,9 @@ class Strategy(Runtime):
             raise RuntimeError("the ")
 
         self["status"] = instance["status"]
-        # todo remove these two column.
-        self["total_asset"] = instance.get("total_asset") or instance.get("asset_total")
-        self["sub_freeze_asset"] = instance.get("sub_freeze_asset") or instance.get("asset_freeze")
 
-        self["asset_total"] = instance.get("total_asset") or instance.get("asset_total")
-        self["asset_freeze"] = instance.get("sub_freeze_asset") or instance.get("asset_freeze")
+        self["asset_total"] = instance["asset_total"]
+        self["asset_freeze"] = instance["asset_freeze"]
 
         self["param_position"] = instance["param_position"]
         self["param_max_abs_loss_ratio"] = instance["param_max_abs_loss_ratio"]
@@ -367,12 +364,8 @@ class Strategy(Runtime):
         self["id"] = tmp_instance["id"]
         self["status"] = tmp_instance["status"]
 
-        self["total_asset"] = tmp_instance.get("total_asset") or tmp_instance.get("asset_total")
-        self["sub_freeze_asset"] = tmp_instance.get("sub_freeze_asset") or tmp_instance.get("asset_freeze")
-        self["asset_total"] = tmp_instance.get("total_asset") or tmp_instance.get("asset_total")
-        self["asset_freeze"] = tmp_instance.get("sub_freeze_asset") or tmp_instance.get("asset_freeze")
-        # self["total_asset"] = tmp_instance["total_asset"]
-        # self["sub_freeze_asset"] = tmp_instance["sub_freeze_asset"]
+        self["asset_total"] = tmp_instance["asset_total"]
+        self["asset_freeze"] = tmp_instance["asset_freeze"]
 
         self["param_position"] = tmp_instance["param_position"]
         self["param_max_abs_loss_ratio"] = tmp_instance["param_max_abs_loss_ratio"]

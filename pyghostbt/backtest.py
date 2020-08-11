@@ -281,7 +281,7 @@ class Backtest(Strategy):
                 " open_expired_timestamp = ?, open_expired_datetime = ?,"
                 " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
                 " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
-                " total_asset = ?, sub_freeze_asset = ?, param_position = ?, param_max_abs_loss_ratio = ?"
+                " asset_total = ?, asset_freeze = ?, param_position = ?, param_max_abs_loss_ratio = ?"
                 " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
                 (
                     self["symbol"], self["exchange"], self["contract_type"], self["strategy"],
@@ -293,7 +293,7 @@ class Backtest(Strategy):
                     self["open_expired_timestamp"], self["open_expired_datetime"],
                     self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
                     self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
-                    self["total_asset"], self["sub_freeze_asset"], self["param_position"],
+                    self["asset_total"], self["asset_freeze"], self["param_position"],
                     self["param_max_abs_loss_ratio"],
                     self["id"],
                 ),
@@ -380,7 +380,7 @@ class Backtest(Strategy):
 
         # 步骤二： 解冻并结算。
         asset.unfreeze_and_settle(
-            self.get("sub_freeze_asset") or self.get("asset_freeze"),
+            self["asset_freeze"],
             self["param"]["position"],
             settle_pnl,
             place_timestamp,
@@ -390,7 +390,7 @@ class Backtest(Strategy):
         conn = Conn(self["db_name"])
         if self["trade_type"] == TRADE_TYPE_FUTURE:
             conn.execute(
-                "UPDATE {}_instance_backtest SET total_pnl_asset = ? WHERE id = ?".format(self["trade_type"]),
+                "UPDATE {}_instance_backtest SET asset_pnl = ? WHERE id = ?".format(self["trade_type"]),
                 (settle_pnl, self["id"]),
             )
         else:

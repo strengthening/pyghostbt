@@ -13,8 +13,8 @@ CREATE TABLE `swap_account_flow_backtest` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `symbol` (`symbol`, `exchange`, `settle_mode`, `timestamp`, `subject`, `backtest_id`),
-  KEY `exchange` (`exchange`, `settle_mode`, `settle_currency`, `timestamp`, `subject`, `backtest_id`),
+  UNIQUE KEY `symbol` (`symbol`, `exchange`, `settle_mode`, `settle_currency`, `subject`, `timestamp`, `backtest_id`),
+  KEY `exchange` (`exchange`, `settle_mode`, `settle_currency`, `subject`, `timestamp`, `backtest_id`),
   KEY `timestamp` (`timestamp`),
   KEY `datetime` (`datetime`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

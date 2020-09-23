@@ -1,6 +1,5 @@
 CREATE TABLE `swap_asset_backtest` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
   `settle_mode` tinyint(4) NOT NULL DEFAULT '1' COMMENT '1: basis currency, 2: counter currency',
   `settle_currency` varchar(20) NOT NULL DEFAULT '' COMMENT 'the settle currency',
@@ -16,8 +15,7 @@ CREATE TABLE `swap_asset_backtest` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `symbol` (`symbol`, `exchange`, `settle_mode`, `timestamp`, `settle_currency`, `backtest_id`),
-  KEY `exchange` (`exchange`, `settle_mode`, `settle_currency`, `timestamp`, `backtest_id`),
+  UNIQUE KEY `exchange` (`exchange`, `settle_mode`, `settle_currency`, `timestamp`, `backtest_id`),
   KEY `timestamp` (`timestamp`),
   KEY `datetime` (`datetime`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -5,8 +5,7 @@ from jsonschema import validate
 from pyanalysis.mysql import Conn
 from pyanalysis.moment import moment
 from pyghostbt.tool.runtime import Runtime
-from pyghostbt.tool.asset import CommonAsset
-from pyghostbt.tool.asset import FutureAsset
+from pyghostbt.tool.asset import Asset
 from pyghostbt.tool.indices import Indices
 from pyghostbt.tool.param import Param
 from pyghostbt.tool.order import CommonOrder
@@ -36,28 +35,15 @@ class Strategy(Runtime):
         validate(instance=kw, schema=strategy_input)
         # 初始化各个组件
 
-        if self.get("trade_type") == TRADE_TYPE_FUTURE:
-            self["asset"] = FutureAsset(
-                trade_type=self.get("trade_type"),
-                symbol=self.get("symbol"),
-                exchange=self.get("exchange"),
-                contract_type=self.get("contract_type"),
-                db_name=self.get("db_name_asset") or self.get("db_name"),
-                mode=self.get("mode"),
-                settle_mode=self.get("settle_mode") or SETTLE_MODE_BASIS,
-                backtest_id=self.get("backtest_id"),
-            )
-        else:
-            self["asset"] = CommonAsset(
-                trade_type=self.get("trade_type"),
-                symbol=self.get("symbol"),
-                exchange=self.get("exchange"),
-                contract_type=self.get("contract_type"),
-                db_name=self.get("db_name_asset") or self.get("db_name"),
-                mode=self.get("mode"),
-                settle_mode=self.get("settle_mode") or SETTLE_MODE_BASIS,
-                backtest_id=self.get("backtest_id"),
-            )
+        self["asset"] = Asset(
+            trade_type=self.get("trade_type"),
+            symbol=self.get("symbol"),
+            exchange=self.get("exchange"),
+            db_name=self.get("db_name_asset") or self.get("db_name"),
+            mode=self.get("mode"),
+            settle_mode=self.get("settle_mode") or SETTLE_MODE_BASIS,
+            backtest_id=self.get("backtest_id"),
+        )
 
         self["indices"] = Indices(
             self.get("indices") or {},
@@ -187,6 +173,7 @@ class Strategy(Runtime):
                 ),
             )
             return len(opened) > 0
+
         opened = conn.query(
             "SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ? "
             "AND wait_start_timestamp = ? AND status > ?".format(

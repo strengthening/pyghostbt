@@ -1,8 +1,8 @@
 CREATE TABLE `spot_asset_strategy` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
   `settle_mode` tinyint(4) NOT NULL DEFAULT '1' COMMENT '1: basis currency, 2: counter currency',
+  `settle_currency` varchar(20) NOT NULL DEFAULT '' COMMENT 'the settle currency',
   `asset_total` decimal(20,8) COMMENT '锚定的总资产',
   `asset_sub` decimal(20,8) COMMENT '永续合约子账户的资产',
   `asset_freeze` decimal(20,8) COMMENT '永续合约子账户冻结数量，期货账户当前冻结的资产，主要用于保证金/支付损失/支付手续费',
@@ -14,7 +14,7 @@ CREATE TABLE `spot_asset_strategy` (
   `create_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `update_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `symbol` (`symbol`, `exchange`, `settle_mode`, `timestamp`),
+  UNIQUE KEY `exchange` (`exchange`, `settle_mode`, `settle_currency`, `timestamp`),
   KEY `timestamp` (`timestamp`),
   KEY `datetime` (`datetime`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

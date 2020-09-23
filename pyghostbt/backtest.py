@@ -264,7 +264,8 @@ class Backtest(Strategy):
         self.check_instance(self)
         conn = Conn(self["db_name"])
         one = conn.query_one(
-            "SELECT id FROM {trade_type}_instance_{mode} WHERE id = ?".format(**self), (self["id"],),
+            "SELECT id FROM {trade_type}_instance_{mode} WHERE id = ?".format(**self),
+            (self["id"],),
         )
 
         if one is None:

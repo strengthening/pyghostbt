@@ -333,6 +333,9 @@ class FutureOrder(CommonOrder):
 
     # 假设已经成交
     def deal(self, slippage=0.01, fee=-0.0005):
+        if slippage < 0 or fee > 0:
+            raise RuntimeError("The slippage must more than 0, the fee must less than 0. ")
+
         # 回测时假设已经成交。
         self["deal_amount"] = self["amount"]
         self["status"] = ORDER_STATUS_FINISH

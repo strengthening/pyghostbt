@@ -309,6 +309,7 @@ class Strategy(Runtime):
         self["wait_finish_timestamp"] = instance["wait_finish_timestamp"]
         self["wait_finish_datetime"] = instance["wait_finish_datetime"]
 
+        self["open_times"] = instance["open_times"]
         self["open_start_timestamp"] = instance["open_start_timestamp"]
         self["open_start_datetime"] = instance["open_start_datetime"]
         self["open_finish_timestamp"] = instance["open_finish_timestamp"]
@@ -316,6 +317,7 @@ class Strategy(Runtime):
         self["open_expired_timestamp"] = instance["open_expired_timestamp"]
         self["open_expired_datetime"] = instance["open_expired_datetime"]
 
+        self["liquidate_times"] = instance["liquidate_times"]
         self["liquidate_start_timestamp"] = instance["liquidate_start_timestamp"]
         self["liquidate_start_datetime"] = instance["liquidate_start_datetime"]
         self["liquidate_finish_timestamp"] = instance["liquidate_finish_timestamp"]
@@ -362,14 +364,15 @@ class Strategy(Runtime):
         self["wait_finish_timestamp"] = tmp_instance["wait_finish_timestamp"]
         self["wait_finish_datetime"] = tmp_instance["wait_finish_datetime"]
 
+        self["open_times"] = tmp_instance["open_times"]
         self["open_start_timestamp"] = tmp_instance["open_start_timestamp"]
         self["open_start_datetime"] = tmp_instance["open_start_datetime"]
         self["open_finish_timestamp"] = tmp_instance["open_finish_timestamp"]
         self["open_finish_datetime"] = tmp_instance["open_finish_datetime"]
         self["open_expired_timestamp"] = tmp_instance["open_expired_timestamp"]
         self["open_expired_datetime"] = tmp_instance["open_expired_datetime"]
-        self["open_times"] = tmp_instance["open_times"]
 
+        self["liquidate_times"] = tmp_instance["liquidate_times"]
         self["liquidate_start_timestamp"] = tmp_instance["liquidate_start_timestamp"]
         self["liquidate_start_datetime"] = tmp_instance["liquidate_start_datetime"]
         self["liquidate_finish_timestamp"] = tmp_instance["liquidate_finish_timestamp"]

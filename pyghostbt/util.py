@@ -261,7 +261,7 @@ def get_amount_and_pdr(
         amount array of each open times.
     """
     if settle_mode == SETTLE_MODE_BASIS:
-        return __amount_and_pdr_basis_beta(
+        return __amount_and_pdr_basis(
             asset_total=asset_total,
             max_rel_loss_ratio=max_rel_loss_ratio,
             position=position,
@@ -274,7 +274,7 @@ def get_amount_and_pdr(
             scale=scale,
         )
 
-    return __amount_and_pdr_counter_beta(
+    return __amount_and_pdr_counter(
         asset_total=asset_total,
         max_rel_loss_ratio=max_rel_loss_ratio,
         position=position,
@@ -289,7 +289,7 @@ def get_amount_and_pdr(
 
 
 # 以basis为基准的计价。
-def __amount_and_pdr_basis_beta(
+def __amount_and_pdr_basis(
         asset_total: float = None,
         max_rel_loss_ratio: float = None,
         position: float = None,
@@ -350,7 +350,7 @@ def __amount_and_pdr_basis_beta(
 
 
 # 以counter为基准的计价。
-def __amount_and_pdr_counter_beta(
+def __amount_and_pdr_counter(
         asset_total: float = None,
         max_rel_loss_ratio: float = None,
         position: float = None,

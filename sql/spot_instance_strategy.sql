@@ -21,7 +21,7 @@ CREATE TABLE `spot_instance_strategy` (
 
   `open_type` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1: open_long, 2: open_short',
   `open_place_type` varchar(10) NOT NULL DEFAULT 't_taker' COMMENT 't_taker t_maker b_taker b_maker market',
-  `open_times` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1~9',
+  `open_times` tinyint(1) NOT NULL DEFAULT '1' COMMENT '开仓的次数，1~9',
   `open_fee` decimal(20,8) COMMENT '开仓费用',
   `open_start_timestamp` bigint(13) COMMENT '开仓开始时间戳',
   `open_start_datetime` datetime COMMENT '开仓开始时间',
@@ -32,7 +32,7 @@ CREATE TABLE `spot_instance_strategy` (
 
   `liquidate_type` tinyint(1) NOT NULL DEFAULT '3' COMMENT '3: liquidate_long, 4: liquidate_short',
   `liquidate_place_type` varchar(10) NOT NULL DEFAULT 'b_taker' COMMENT 't_taker t_maker b_taker b_maker market',
-  `liquidate_times` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1~9',
+  `liquidate_times` tinyint(1) NOT NULL DEFAULT '1' COMMENT '平仓的次数，1~9',
   `liquidate_fee` decimal(20,8) COMMENT '平仓费用',
   `liquidate_start_timestamp` bigint(13) COMMENT '平仓开始时间戳',
   `liquidate_start_datetime` datetime COMMENT '平仓开始时间',

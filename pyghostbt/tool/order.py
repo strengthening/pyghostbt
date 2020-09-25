@@ -152,12 +152,12 @@ class CommonOrder(dict):
             (self["instance_id"],),
         )
 
-        open_times, open_amount, open_fee = 0, 0, 0.0
+        open_amount, open_fee = 0, 0.0
         open_start_timestamp, open_finish_timestamp = 0, 0
         open_start_datetime, open_finish_datetime = "", ""
         open_type, open_place_type = ORDER_TYPE_OPEN_LONG, ""
 
-        liquidate_times, liquidate_amount, liquidate_fee = 0, 0, 0.0
+        liquidate_amount, liquidate_fee = 0, 0.0
         liquidate_start_timestamp, liquidate_finish_timestamp = 0, 0
         liquidate_start_datetime, liquidate_finish_datetime = "", ""
         liquidate_type, liquidate_place_type = ORDER_TYPE_LIQUIDATE_LONG, ""
@@ -169,7 +169,6 @@ class CommonOrder(dict):
             ).format("YYYY-MM-DD HH:mm:ss")
 
             if order["type"] in (ORDER_TYPE_OPEN_LONG, ORDER_TYPE_OPEN_SHORT):
-                open_times += 1
                 open_amount += order["deal_amount"]
                 open_fee += order["fee"]
                 open_type = order["type"]
@@ -182,7 +181,6 @@ class CommonOrder(dict):
                 open_finish_datetime = place_datetime
 
             if order["type"] in (ORDER_TYPE_LIQUIDATE_LONG, ORDER_TYPE_LIQUIDATE_SHORT):
-                liquidate_times += 1
                 liquidate_amount += order["deal_amount"]
                 liquidate_fee += order["fee"]
                 liquidate_type = order["type"]
@@ -198,18 +196,18 @@ class CommonOrder(dict):
             return
 
         conn.execute(
-            "UPDATE {trade_type}_instance_{mode} SET open_times = ?, open_fee = ?, open_type = ?, open_place_type = ?,"
+            "UPDATE {trade_type}_instance_{mode} SET open_fee = ?, open_type = ?, open_place_type = ?,"
             " open_start_timestamp = ?, open_start_datetime = ?, open_finish_timestamp = ?, open_finish_datetime = ?, "
-            " liquidate_times = ?, liquidate_fee = ?, liquidate_type = ?, liquidate_place_type = ?,"
+            " liquidate_fee = ?, liquidate_type = ?, liquidate_place_type = ?,"
             " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
             " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ? WHERE id = ?".format(
                 trade_type=self._trade_type,
                 mode=MODE_STRATEGY if self._mode != MODE_BACKTEST else MODE_BACKTEST,
             ),
             (
-                open_times, open_fee, open_type, open_place_type,
+                open_fee, open_type, open_place_type,
                 open_start_timestamp, open_start_datetime, open_finish_timestamp, open_finish_datetime,
-                liquidate_times, liquidate_fee, liquidate_type, liquidate_place_type,
+                liquidate_fee, liquidate_type, liquidate_place_type,
                 liquidate_start_timestamp, liquidate_start_datetime,
                 liquidate_finish_timestamp, liquidate_finish_datetime, self["instance_id"],
             ),
@@ -422,12 +420,12 @@ class FutureOrder(CommonOrder):
             (self["instance_id"],),
         )
 
-        open_times, open_amount, open_fee = 0, 0, 0.0
+        open_amount, open_fee = 0, 0.0
         open_start_timestamp, open_finish_timestamp = 0, 0
         open_start_datetime, open_finish_datetime = "", ""
         open_type, open_place_type = ORDER_TYPE_OPEN_LONG, ""
 
-        liquidate_times, liquidate_amount, liquidate_fee = 0, 0, 0.0
+        liquidate_amount, liquidate_fee = 0, 0.0
         liquidate_start_timestamp, liquidate_finish_timestamp = 0, 0
         liquidate_start_datetime, liquidate_finish_datetime = "", ""
         liquidate_type, liquidate_place_type = ORDER_TYPE_LIQUIDATE_LONG, ""
@@ -453,7 +451,6 @@ class FutureOrder(CommonOrder):
                     ORDER_PLACE_TYPE_L_SWAP,
                     ORDER_PLACE_TYPE_O_SWAP,
             ):
-                open_times += 1
                 open_amount += order["deal_amount"]
                 open_fee += order["fee"]
                 open_type = order["type"]
@@ -472,7 +469,6 @@ class FutureOrder(CommonOrder):
                     ORDER_PLACE_TYPE_L_SWAP,
                     ORDER_PLACE_TYPE_O_SWAP,
             ):
-                liquidate_times += 1
                 liquidate_amount += order["deal_amount"]
                 liquidate_fee += order["fee"]
                 liquidate_type = order["type"]
@@ -528,16 +524,16 @@ class FutureOrder(CommonOrder):
             swap_asset_pnl /= real_number(swap_contract["liquidate_avg_price"])
 
         conn.execute(
-            "UPDATE future_instance_backtest SET open_times = ?, open_fee = ?, open_type = ?, open_place_type = ?,"
+            "UPDATE future_instance_backtest SET open_fee = ?, open_type = ?, open_place_type = ?,"
             " open_start_timestamp = ?, open_start_datetime = ?, open_finish_timestamp = ?, open_finish_datetime = ?, "
-            " liquidate_times = ?, liquidate_fee = ?, liquidate_type = ?, liquidate_place_type = ?,"
+            " liquidate_fee = ?, liquidate_type = ?, liquidate_place_type = ?,"
             " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
             " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
             " swap_times = ?, swap_fee = ?, swap_asset_pnl = ? WHERE id = ?",
             (
-                open_times, open_fee, open_type, open_place_type,
+                open_fee, open_type, open_place_type,
                 open_start_timestamp, open_start_datetime, open_finish_timestamp, open_finish_datetime,
-                liquidate_times, liquidate_fee, liquidate_type, liquidate_place_type,
+                liquidate_fee, liquidate_type, liquidate_place_type,
                 liquidate_start_timestamp, liquidate_start_datetime,
                 liquidate_finish_timestamp, liquidate_finish_datetime,
                 swap_times, swap_fee, swap_asset_pnl, self["instance_id"],

@@ -277,10 +277,10 @@ class Backtest(Strategy):
                 " strategy = ?, unit_amount = ?, lever = ?, status = ?, `interval` = ?,"
                 " wait_start_timestamp = ?, wait_start_datetime = ?,"
                 " wait_finish_timestamp = ?, wait_finish_datetime = ?,"
-                " open_start_timestamp = ?, open_start_datetime = ?,"
+                " open_times = ?, open_start_timestamp = ?, open_start_datetime = ?,"
                 " open_finish_timestamp = ?, open_finish_datetime = ?,"
                 " open_expired_timestamp = ?, open_expired_datetime = ?,"
-                " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
+                " liquidate_times = ?, liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
                 " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
                 " asset_total = ?, asset_freeze = ?, param_position = ?, param_max_abs_loss_ratio = ?"
                 " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
@@ -289,10 +289,12 @@ class Backtest(Strategy):
                     self["unit_amount"], self["lever"], self["status"], self["interval"],
                     self["wait_start_timestamp"], self["wait_start_datetime"],
                     self["wait_finish_timestamp"], self["wait_finish_datetime"],
-                    self["open_start_timestamp"], self["open_start_datetime"],
+
+                    self["open_times"], self["open_start_timestamp"], self["open_start_datetime"],
                     self["open_finish_timestamp"], self["open_finish_datetime"],
                     self["open_expired_timestamp"], self["open_expired_datetime"],
-                    self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
+
+                    self["liquidate_times"], self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
                     self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
                     self["asset_total"], self["asset_freeze"], self["param_position"],
                     self["param_max_abs_loss_ratio"],
@@ -306,10 +308,10 @@ class Backtest(Strategy):
                 " strategy = ?, status = ?, lever = ?,"
                 " wait_start_timestamp = ?, wait_start_datetime = ?,"
                 " wait_finish_timestamp = ?, wait_finish_datetime = ?,"
-                " open_start_timestamp = ?, open_start_datetime = ?,"
+                " open_times = ?, open_start_timestamp = ?, open_start_datetime = ?,"
                 " open_finish_timestamp = ?, open_finish_datetime = ?,"
                 " open_expired_timestamp = ?, open_expired_datetime = ?,"
-                " liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
+                " liquidate_times = ?, liquidate_start_timestamp = ?, liquidate_start_datetime = ?,"
                 " liquidate_finish_timestamp = ?, liquidate_finish_datetime = ?,"
                 " asset_total = ?, asset_freeze = ?, param_position = ?, param_max_abs_loss_ratio = ?"
                 " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
@@ -318,10 +320,12 @@ class Backtest(Strategy):
                     self["strategy"], self["status"], self["lever"],
                     self["wait_start_timestamp"], self["wait_start_datetime"],
                     self["wait_finish_timestamp"], self["wait_finish_datetime"],
-                    self["open_start_timestamp"], self["open_start_datetime"],
+
+                    self["open_times"], self["open_start_timestamp"], self["open_start_datetime"],
                     self["open_finish_timestamp"], self["open_finish_datetime"],
                     self["open_expired_timestamp"], self["open_expired_datetime"],
-                    self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
+
+                    self["liquidate_times"], self["liquidate_start_timestamp"], self["liquidate_start_datetime"],
                     self["liquidate_finish_timestamp"], self["liquidate_finish_datetime"],
                     self["asset_total"], self["asset_freeze"], self["param_position"],
                     self["param_max_abs_loss_ratio"],

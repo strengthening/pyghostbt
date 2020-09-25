@@ -133,7 +133,7 @@ def __amount_and_pdr_basis(
 ) -> (float, float):
     real_open_slippage = real_number(open_price) * abs(slippage)
 
-    if liquidate_price < open_times:
+    if liquidate_price < open_price:
         real_open_price = real_number(open_price) + real_open_slippage
         real_loss_price = real_number(liquidate_price) + real_open_slippage
         real_loss_price *= (1 - abs(slippage))
@@ -192,7 +192,7 @@ def __amount_and_pdr_counter(
 ) -> (float, float):
     real_open_slippage = real_number(open_price) * abs(slippage)
     # 做多时的情况。
-    if liquidate_price < open_times:
+    if liquidate_price < open_price:
         real_open_price = real_number(open_price) + real_open_slippage
         # 止损时要考虑open时的滑点，造成了平仓价格也收到影响。
         real_loss_price = real_number(liquidate_price) + real_open_slippage

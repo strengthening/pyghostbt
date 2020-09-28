@@ -16,9 +16,9 @@ PARAM_NAME_MAX_ABS_LOSS_RATIO = "max_abs_loss_ratio"
 # 下单价格间隔的值。
 PARAM_NAME_PLACE_DIFF = "place_diff"
 # 理想情况下的开仓价格
-PARAM_NORMAL_OPEN_PRICE = "normal_open_price"
+PARAM_NAME_NORMAL_OPEN_PRICE = "normal_open_price"
 # 理想情况下的平仓价格
-PARAM_NORMAL_LOSS_PRICE = "normal_loss_price"
+PARAM_NAME_NORMAL_LOSS_PRICE = "normal_loss_price"
 
 PARAM_NAME_1ST_ABS_PROFIT_RATIO = "1st_abs_profit_ratio"
 

@@ -13,12 +13,16 @@ PARAM_NAME_POSITION_DILUTION_RATIO = "position_dilution_ratio"
 PARAM_NAME_MAX_REL_LOSS_RATIO = "max_rel_loss_ratio"
 # 平仓价格对应于开仓价格的比率 l_price/o_price - 1，正负皆可
 PARAM_NAME_MAX_ABS_LOSS_RATIO = "max_abs_loss_ratio"
+# 下单价格间隔的值。
+PARAM_NAME_PLACE_DIFF = "place_diff"
+# 理想情况下的开仓价格
+PARAM_NORMAL_OPEN_PRICE = "normal_open_price"
+# 理想情况下的平仓价格
+PARAM_NORMAL_LOSS_PRICE = "normal_loss_price"
 
 PARAM_NAME_1ST_ABS_PROFIT_RATIO = "1st_abs_profit_ratio"
 
 PARAM_NAME_2ND_ABS_PROFIT_RATIO = "2nd_abs_profit_ratio"
-# 下单价格间隔的值。
-PARAM_NAME_PLACE_DIFF = "place_diff"
 
 
 param_input = {

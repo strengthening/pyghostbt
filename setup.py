@@ -1,7 +1,7 @@
 import io
 import re
 
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 
 with io.open("pyghostbt/__init__.py", "rt", encoding="utf8") as f:
@@ -13,5 +13,5 @@ setup(
     author="strengthening",
     author_email="ducg@foxmail.com",
     # url='http://www.you.com/projectname',
-    packages=["pyghostbt", "pyghostbt.tool"],
+    packages=find_packages(),
 )

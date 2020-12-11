@@ -6,10 +6,12 @@ from typing import List
 from datetime import datetime
 
 from pyanalysis.moment import moment
+from pyanalysis.mysql import Conn
 from pyghostbt.const import CONTRACT_TYPE_THIS_WEEK
 from pyghostbt.const import CONTRACT_TYPE_NEXT_WEEK
 from pyghostbt.const import CONTRACT_TYPE_QUARTER
 from pyghostbt.const import SETTLE_MODE_BASIS
+from pyghostbt.const import TRADE_TYPE_SPOT
 
 
 def uuid() -> str:
@@ -51,6 +53,32 @@ def real_number(std_num: float) -> float:
         The real value of the number.
     """
     return float(std_num) / 100000000
+
+
+def interval_time_series(
+        start_ts: int = 1199116800000,
+        timezone: str = "Asia/Shanghai",
+        interval: str = "1day",
+):
+    now_ts = moment.now().millisecond_timestamp
+    flag_ts = start_ts
+    while flag_ts < now_ts:
+        yield flag_ts
+        flag_ts += 24 * 60 * 60 * 1000
+
+
+def backtest_time_series(
+        backtest_id: str = "",
+        trade_type: str = TRADE_TYPE_SPOT,
+        db_name: str = "",
+):
+    conn = Conn(db_name)
+    return conn.query_range(
+        sql="SELECT wait_start_timestamp FROM {}_instance_backtest"
+            " WHERE backtest_id = ? AND wait_start_timestamp != 0"
+            " GROUP BY wait_start_timestamp ORDER BY wait_start_timestamp".format(trade_type),
+        args=(backtest_id,),
+    )
 
 
 # pdr is short for position_dilution_ratio

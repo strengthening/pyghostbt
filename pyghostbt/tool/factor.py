@@ -5,7 +5,7 @@ from pyghostbt.const import *
 
 factor_input = {
     "type": "object",
-    "required": ["trade_type", "symbol", "db_name", "interval"],
+    "required": ["trade_type", "symbol", "db_name"],
     "properties": {
         "trade_type": {
             "type": "string",

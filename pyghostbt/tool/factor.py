@@ -5,7 +5,7 @@ from pyghostbt.const import *
 
 factor_input = {
     "type": "object",
-    "required": ["trade_type", "symbol", "db_name"],
+    "required": ["trade_type", "symbol", "db_name", "interval"],
     "properties": {
         "trade_type": {
             "type": "string",
@@ -14,6 +14,13 @@ factor_input = {
         "symbol": {
             "type": "string",
             "minLength": 1,
+        },
+        "interval": {
+            "type": ["null", "string"],
+            "enum": [
+                None, INTERVAL_1MIN, INTERVAL_15MIN, INTERVAL_1HOUR,
+                INTERVAL_4HOUR, INTERVAL_8HOUR, INTERVAL_1DAY, INTERVAL_1WEEK,
+            ],
         },
         "contract_type": {
             "type": ["null", "string"],
@@ -34,22 +41,24 @@ class Factor(object):
 
         self._symbol = kwargs.get("symbol")
         self._trade_type = kwargs.get("trade_type")
+        self._interval = kwargs.get("interval") or INTERVAL_1DAY
         self._contract_type = kwargs.get("contract_type") or CONTRACT_TYPE_NONE
 
         self._db_name = kwargs.get("db_name", "default")
 
     def get_metadata(self, fact_name: str) -> dict:
         conn = Conn(self._db_name)
+        # 对应的trade_type 没有找到 就去spot类型里面找。
         metadata = conn.query_one(
-            "SELECT * FROM factor_metadata WHERE symbol = ? AND trade_type = ? AND factor_name = ? ",
-            (self._symbol, self._trade_type, fact_name),
+            "SELECT * FROM factor_metadata WHERE symbol = ? AND trade_type = ? AND `interval` = ? AND factor_name = ? ",
+            (self._symbol, self._trade_type, self._interval, fact_name),
         )
         if metadata is not None:
             return metadata
 
         metadata = conn.query_one(
-            "SELECT * FROM factor_metadata WHERE symbol = ? AND trade_type = ? AND factor_name = ? ",
-            (self._symbol, TRADE_TYPE_SPOT, fact_name),
+            "SELECT * FROM factor_metadata WHERE symbol = ? AND trade_type = ? AND `interval` = ? AND factor_name = ? ",
+            (self._symbol, TRADE_TYPE_SPOT, self._interval, fact_name),
         )
         if metadata is None:
             raise RuntimeError("Can not find the meta in database. ")

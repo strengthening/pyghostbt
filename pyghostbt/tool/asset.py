@@ -141,6 +141,14 @@ class Asset(dict):
             raise RuntimeError("Only backtest mode can insert data into table. ")
         validate(instance=kwargs, schema=account_flow_input)
         conn = Conn(self._db_name)
+        item = conn.query_one(
+            """SELECT * FROM {} WHERE symbol = ? AND exchange = ? AND settle_mode = ? AND settle_currency = ?
+             AND subject = ? AND timestamp = ? AND backtest_id = ?""".format(self._account_flow_table_name),
+            (
+                self._symbol, self._exchange, self._settle_mode, self._settle_currency,
+                kwargs.get("subject"), kwargs.get("timestamp"), self._backtest_id,
+            ),
+        )
         conn.insert(
             """INSERT INTO {} (symbol, exchange, settle_mode, settle_currency, backtest_id, 
             subject, amount, position, timestamp, datetime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -148,7 +156,7 @@ class Asset(dict):
             (
                 self._symbol, self._exchange, self._settle_mode, self._settle_currency, self._backtest_id,
                 kwargs.get("subject"), kwargs.get("amount"), kwargs.get("position"),
-                kwargs.get("timestamp"), kwargs.get("datetime"),
+                kwargs.get("timestamp") + 1 if item else kwargs.get("timestamp"), kwargs.get("datetime"),
             ),
         )
 

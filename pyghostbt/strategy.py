@@ -755,6 +755,7 @@ class Strategy(Runtime):
                 "price": int(price),
                 "amount": int(amount),
                 "lever": self["lever"],
+                "unit_amount": self.get("unit_amount") or 1,
             },
             trade_type=self["trade_type"],
             db_name=self["db_name"],

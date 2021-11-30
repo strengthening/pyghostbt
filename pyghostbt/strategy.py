@@ -297,6 +297,7 @@ class Strategy(Runtime):
             raise RuntimeError("the ")
 
         self["status"] = instance["status"]
+        self["unit_amount"] = instance.get("unit_amount") or 1
 
         self["asset_total"] = instance["asset_total"]
         self["asset_freeze"] = instance["asset_freeze"]
@@ -352,6 +353,7 @@ class Strategy(Runtime):
 
         self["id"] = tmp_instance["id"]
         self["status"] = tmp_instance["status"]
+        self["unit_amount"] = tmp_instance.get("unit_amount") or 1
 
         self["asset_total"] = tmp_instance["asset_total"]
         self["asset_freeze"] = tmp_instance["asset_freeze"]

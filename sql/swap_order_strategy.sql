@@ -14,6 +14,7 @@ CREATE TABLE `swap_order_strategy` (
   `fee` decimal(20,8),
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
+  `unit_amount` int(11) DEFAULT '1',
   `place_timestamp` bigint(13) NOT NULL COMMENT 'order place timestamp',
   `place_datetime` datetime NOT NULL COMMENT 'order place datetime',
   `deal_timestamp` bigint(13) COMMENT 'order deal timestamp',

@@ -3,6 +3,7 @@ CREATE TABLE `swap_instance_strategy` (
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
   `strategy` varchar(20) NOT NULL,
+  `unit_amount` int(11) DEFAULT '1',
   `lever` int(11) NOT NULL DEFAULT '10',
   `status` tinyint(1) NOT NULL COMMENT '0: waiting, 1: opening, 2: liquidating, 3: finished, 9: error',
 

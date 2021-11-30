@@ -136,7 +136,7 @@ def get_amount_and_pdr(
         asset_total=asset_total,
         max_rel_loss_ratio=max_rel_loss_ratio,
         position=position,
-        # unit_amount=unit_amount,
+        unit_amount=unit_amount,
         slippage=slippage,
         open_price=open_price,
         liquidate_price=liquidate_price,
@@ -211,6 +211,7 @@ def __amount_and_pdr_counter(
         asset_total: float = None,
         max_rel_loss_ratio: float = None,
         position: float = None,
+        unit_amount: int = None,
         slippage: float = None,
         open_price: int = None,
         liquidate_price: int = None,
@@ -258,10 +259,22 @@ def __amount_and_pdr_counter(
 
     real_loss_asset = abs(real_number(total_amount) * (real_loss_price - real_open_price))
     max_loss_asset = abs(max_rel_loss_ratio * asset_net * position)  # 相对于设置的position亏损最大资产值
-    if real_loss_asset > max_loss_asset:  # 超过了最大可以亏的金额时，要缩小头寸规模。
-        pdr = max_loss_asset / real_loss_asset
-        return [int(pdr * a) for a in amounts][0], pdr
-    return amounts[0], 1.0
+
+    if unit_amount <= 1:
+        # 超过了最大可以亏的金额时，要缩小头寸规模。
+        if real_loss_asset > max_loss_asset:
+            pdr = max_loss_asset / real_loss_asset
+            return [int(pdr * a) for a in amounts][0], pdr
+        else:
+            return amounts[0], 1.0
+    else:
+        # 当unit_amount > 1时，表明用张来计算。
+        # 超过了最大可以亏的金额时，要缩小头寸规模。
+        if real_loss_asset > max_loss_asset:
+            pdr = max_loss_asset / real_loss_asset
+            return [int(pdr * real_number(a) * real_open_price / unit_amount) for a in amounts][0], pdr
+        else:
+            return int(real_number(amounts[0]) * real_open_price / unit_amount), 1.0
 
 
 def get_contract_type(timestamp: int, due_timestamp: int) -> str:

@@ -4,7 +4,7 @@ CREATE TABLE `swap_instance_backtest` (
   `exchange` varchar(20) NOT NULL,
   `backtest_id` varchar(32) NOT NULL COMMENT 'backtest unique id',
   `strategy` varchar(20) NOT NULL,
-  `unit_amount` int(11) DEFAULT '1',
+  `unit_amount` decimal(11,8) DEFAULT '1',
   `lever` int(11) NOT NULL DEFAULT '10',
   `status` tinyint(1) NOT NULL COMMENT '0: waiting, 1: opening, 2: liquidating, 3: finished, 9: error',
 

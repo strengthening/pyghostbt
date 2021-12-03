@@ -5,7 +5,7 @@ CREATE TABLE `future_instance_backtest` (
   `contract_type` varchar(20) NOT NULL,
   `backtest_id` varchar(32) NOT NULL COMMENT 'backtest unique id',
   `strategy` varchar(20) NOT NULL,
-  `unit_amount` int(11) NOT NULL DEFAULT '10',
+  `unit_amount` decimal(11,8) NOT NULL DEFAULT '10',
   `lever` int(11) NOT NULL DEFAULT '10',
   `status` tinyint(1) NOT NULL COMMENT '0: waiting, 1: opening, 2: liquidating, 3: finished, 9: error',
   `interval` varchar(20) NOT NULL DEFAULT '1day' COMMENT 'the strategy logic generate interval: 1min/1hour/4hour/1day/1week',

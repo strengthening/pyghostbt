@@ -15,7 +15,7 @@ CREATE TABLE `future_order_backtest` (
   `symbol` varchar(30) NOT NULL,
   `exchange` varchar(20) NOT NULL,
   `contract_type` varchar(20) NOT NULL,
-  `unit_amount` int(11) NOT NULL DEFAULT '10',
+  `unit_amount` decimal(11,8) NOT NULL DEFAULT '10',
   `place_timestamp` bigint(13) NOT NULL COMMENT 'order place timestamp',
   `place_datetime` datetime NOT NULL COMMENT 'order place datetime',
   `deal_timestamp` bigint(13) COMMENT 'order deal timestamp',

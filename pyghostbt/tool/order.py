@@ -250,7 +250,8 @@ future_order_init = {
             "type": "integer",
         },
         "unit_amount": {
-            "type": "integer",
+            "type": "number",
+            "minimum": 0,
         },
         "due_timestamp": {
             "type": "integer",

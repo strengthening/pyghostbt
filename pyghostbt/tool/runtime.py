@@ -46,8 +46,8 @@ runtime_input = {
             ],
         },
         "unit_amount": {
-            "type": "integer",
-            "enum": [1, 10, 100],
+            "type": "number",
+            "minimum": 0,
         },
         "lever": {
             "type": "integer",

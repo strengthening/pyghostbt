@@ -60,8 +60,8 @@ INSTANCE_VALIDATE = {
             ],
         },
         "unit_amount": {
-            "type": "integer",
-            "enum": [10, 100],
+            "type": "number",
+            "minimum": 0,
         },
         "lever": {
             "type": "integer",

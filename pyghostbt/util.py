@@ -268,9 +268,9 @@ def __amount_and_pdr_counter(
         # 超过了最大可以亏的金额时，要缩小头寸规模。
         if real_loss_asset > max_loss_asset:
             pdr = max_loss_asset / real_loss_asset
-            return [int(pdr * real_number(a) * real_open_price / unit_amount) for a in amounts][0], pdr
+            return [int(pdr * real_number(a) / unit_amount) for a in amounts][0], pdr
         else:
-            return int(real_number(amounts[0]) * real_open_price / unit_amount), 1.0
+            return int(real_number(amounts[0]) / unit_amount), 1.0
     else:
         # 超过了最大可以亏的金额时，要缩小头寸规模。
         if real_loss_asset > max_loss_asset:

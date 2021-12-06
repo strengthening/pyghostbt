@@ -410,7 +410,7 @@ class Strategy(Runtime):
         )
         return orders
 
-    def _analysis_orders1(self, due_ts: int) -> tuple:
+    def _analysis_orders(self, due_ts: int) -> tuple:
         """
         :param due_ts: the due timestamp now.
         :return:

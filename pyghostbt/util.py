@@ -146,6 +146,7 @@ def get_amount_and_pdr(
     )
 
 
+# entrance
 # 以basis为基准的计价。
 def __amount_and_pdr_basis(
         asset_total: float = None,
@@ -160,11 +161,12 @@ def __amount_and_pdr_basis(
         scale: float = None,
 ) -> (float, float):
     real_open_slippage = real_number(open_price) * abs(slippage)
-
+    # open long
     if liquidate_price < open_price:
         real_open_price = real_number(open_price) + real_open_slippage
         real_loss_price = real_number(liquidate_price) + real_open_slippage
         real_loss_price *= (1 - abs(slippage))
+    # open short
     else:
         real_open_price = real_number(open_price) - real_open_slippage
         real_loss_price = real_number(liquidate_price) - real_open_slippage
@@ -206,6 +208,7 @@ def __amount_and_pdr_basis(
     return amounts[0], 1.0
 
 
+# entrance done!
 # 以counter为基准的计价。
 def __amount_and_pdr_counter(
         asset_total: float = None,
@@ -260,21 +263,21 @@ def __amount_and_pdr_counter(
     real_loss_asset = abs(real_number(total_amount) * (real_loss_price - real_open_price))
     max_loss_asset = abs(max_rel_loss_ratio * asset_net * position)  # 相对于设置的position亏损最大资产值
 
-    if unit_amount <= 1:
-        # 超过了最大可以亏的金额时，要缩小头寸规模。
-        if real_loss_asset > max_loss_asset:
-            pdr = max_loss_asset / real_loss_asset
-            return [int(pdr * a) for a in amounts][0], pdr
-        else:
-            return amounts[0], 1.0
-    else:
-        # 当unit_amount > 1时，表明用张来计算。
+    # 当unit_amount取非1的数时，其实相当于交易所想让用户把下单数量取整，所以这块不做标准处理了。
+    if unit_amount > 1.0 or unit_amount < 1.0:
         # 超过了最大可以亏的金额时，要缩小头寸规模。
         if real_loss_asset > max_loss_asset:
             pdr = max_loss_asset / real_loss_asset
             return [int(pdr * real_number(a) * real_open_price / unit_amount) for a in amounts][0], pdr
         else:
             return int(real_number(amounts[0]) * real_open_price / unit_amount), 1.0
+    else:
+        # 超过了最大可以亏的金额时，要缩小头寸规模。
+        if real_loss_asset > max_loss_asset:
+            pdr = max_loss_asset / real_loss_asset
+            return [int(pdr * a) for a in amounts][0], pdr
+        else:
+            return amounts[0], 1.0
 
 
 def get_contract_type(timestamp: int, due_timestamp: int) -> str:

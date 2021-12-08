@@ -71,11 +71,11 @@ class Strategy(Runtime):
 
             self["strategy"] = instance["strategy"]
             self["interval"] = instance["interval"]
+            self["unit_amount"] = instance["unit_amount"]
             self["param"] = self["param"].load(instance_id)
             self["indices"] = self["indices"].load(instance_id)
 
             if self["trade_type"] == TRADE_TYPE_FUTURE:
-                self["unit_amount"] = instance["unit_amount"]
                 self["lever"] = instance["lever"]
                 self["status"] = instance["status"]
 

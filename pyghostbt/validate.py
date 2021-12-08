@@ -1,10 +1,10 @@
 from pyghostbt.const import *
 
-
 INSTANCE_VALIDATE = {
     "type": "object",
     "required": [
-        "id", "symbol", "exchange", "strategy", "status", "interval",
+        "id", "symbol", "exchange", "strategy",
+        "status", "interval", "unit_amount",
         "asset_total", "asset_freeze",
         "param_position", "param_max_abs_loss_ratio",
         "wait_start_timestamp", "wait_start_datetime",

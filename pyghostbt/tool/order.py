@@ -6,7 +6,7 @@ from pyghostbt.util import real_number
 
 order_input = {
     "type": "object",
-    "required": ["symbol", "exchange", "instance_id", "sequence"],
+    "required": ["symbol", "exchange", "instance_id", "sequence", "unit_amount"],
     "properties": {
         "symbol": {
             "type": "string",
@@ -19,6 +19,10 @@ order_input = {
         },
         "sequence": {
             "type": "integer",
+            "minimum": 0,
+        },
+        "unit_amount": {
+            "type": "number",
             "minimum": 0,
         },
         "backtest_id": {

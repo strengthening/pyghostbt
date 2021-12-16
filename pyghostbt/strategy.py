@@ -552,6 +552,7 @@ class Strategy(Runtime):
         open_amount: int = 0
         open_quota: float = 0.0
         liquidate_quota: float = 0.0
+        unit_amount: float = self.get("unit_amount") or 1.0
 
         orders = self._get_orders()
         for order in orders:
@@ -559,7 +560,15 @@ class Strategy(Runtime):
                 return False, 0.0
 
             avg_price = real_number(order["avg_price"])
-            deal_amount = real_number(order["deal_amount"])
+            if unit_amount > 1.0 or unit_amount < 0.1:
+                # okex
+                if settle_mode == SETTLE_MODE_BASIS:
+                    deal_amount = order["deal_amount"] * unit_amount / avg_price
+                else:
+                    deal_amount = order["deal_amount"] * unit_amount
+            else:
+                # binance
+                deal_amount = real_number(order["deal_amount"])
             total_fee += order["fee"]
 
             if order["type"] == ORDER_TYPE_OPEN_LONG:

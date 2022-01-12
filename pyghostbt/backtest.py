@@ -351,7 +351,7 @@ class Backtest(Strategy):
         Returns:
             The next stage starting timestamp.
         """
-        (_, _, _, _, _, opening_amounts, _) = self._analysis_orders1(due_ts)
+        (_, _, _, _, _, opening_amounts, _) = self._analysis_orders(due_ts)
         instance_status = INSTANCE_STATUS_LIQUIDATING
         for ts in opening_amounts:
             if opening_amounts[ts] > 0:

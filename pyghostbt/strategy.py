@@ -604,11 +604,11 @@ class Strategy(Runtime):
                 return False, 0.0
             avg_price = real_number(order["avg_price"])
             deal_amount = real_number(order["deal_amount"])
-            if order["unit_amount"]>1.0 or order["unit_amount"]<1.0:
+            if order["unit_amount"] > 1.0 or order["unit_amount"] < 1.0:
                 if settle_mode == SETTLE_MODE_BASIS:
-                    deal_amount = order["deal_amount"]*order["unit_amount"]/avg_price
+                    deal_amount = order["deal_amount"] * order["unit_amount"] / avg_price
                 else:
-                    deal_amount = order["deal_amount"]*order["unit_amount"]
+                    deal_amount = order["deal_amount"] * order["unit_amount"]
 
             total_fee += order["fee"]
             if order["due_timestamp"] not in contract_kv:
@@ -623,7 +623,6 @@ class Strategy(Runtime):
                     "liquidate_quota": 0,
                 }
 
-            # todo xuyao xiugai
             if order["type"] == ORDER_TYPE_OPEN_LONG:
                 open_amount += order["deal_amount"]
                 contract = contract_kv[order["due_timestamp"]]
@@ -640,6 +639,7 @@ class Strategy(Runtime):
                 liquidate_amount += order["deal_amount"]
                 contract = contract_kv[order["due_timestamp"]]
                 contract["liquidate_amount"] += order["deal_amount"]
+                contract["liquidate_deal_amount"] += deal_amount
                 contract["liquidate_sum"] += order["deal_amount"] * avg_price
                 contract["liquidate_quota"] += deal_amount * avg_price
                 contract["liquidate_avg_price"] = contract["liquidate_sum"] / contract["liquidate_amount"]
@@ -647,9 +647,10 @@ class Strategy(Runtime):
                 liquidate_amount += order["deal_amount"]
                 contract = contract_kv[order["due_timestamp"]]
                 contract["liquidate_amount"] += order["deal_amount"]
+                contract["liquidate_deal_amount"] += deal_amount
                 contract["liquidate_sum"] -= order["deal_amount"] * avg_price
                 contract["liquidate_quota"] -= deal_amount * avg_price
-                contract["liquidate_avg_price"] = -contract["liquidate_sum"] / contract["liquidate_amount"]
+                contract["liquidate_avg_price"] = -contract["liquidate_quota"] / contract["liquidate_deal_amount"]
             else:
                 raise RuntimeError("the order type is not right. ")
 
@@ -658,9 +659,10 @@ class Strategy(Runtime):
             contract = contract_kv[due_timestamp]
             if contract["open_amount"] != contract["liquidate_amount"]:
                 return False, 0.0
-            
+
             if settle_mode == SETTLE_MODE_BASIS:
-                contract_income = (contract["liquidate_quota"] + contract["open_quota"])
+                contract_income = contract["liquidate_quota"] + contract["open_quota"]
+                contract_income = contract_income / contract["liquidate_avg_price"]
             else:
                 contract_income = contract["liquidate_quota"] + contract["open_quota"]
 

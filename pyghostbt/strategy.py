@@ -560,7 +560,7 @@ class Strategy(Runtime):
                 return False, 0.0
 
             avg_price = real_number(order["avg_price"])
-            if unit_amount > 1.0 or unit_amount < 0.1:
+            if unit_amount > 1.0 or unit_amount < 1.0:
                 # okex
                 if settle_mode == SETTLE_MODE_BASIS:
                     deal_amount = order["deal_amount"] * unit_amount / avg_price

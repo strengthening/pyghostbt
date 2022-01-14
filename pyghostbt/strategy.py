@@ -642,7 +642,7 @@ class Strategy(Runtime):
                 contract["liquidate_deal_amount"] += deal_amount
                 contract["liquidate_sum"] += order["deal_amount"] * avg_price
                 contract["liquidate_quota"] += deal_amount * avg_price
-                contract["liquidate_avg_price"] = contract["liquidate_sum"] / contract["liquidate_amount"]
+                contract["liquidate_avg_price"] = contract["liquidate_quota"] / contract["liquidate_deal_amount"]
             elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
                 liquidate_amount += order["deal_amount"]
                 contract = contract_kv[order["due_timestamp"]]
@@ -659,18 +659,14 @@ class Strategy(Runtime):
             contract = contract_kv[due_timestamp]
             if contract["open_amount"] != contract["liquidate_amount"]:
                 return False, 0.0
-
             if settle_mode == SETTLE_MODE_BASIS:
                 contract_income = contract["liquidate_quota"] + contract["open_quota"]
                 contract_income = contract_income / contract["liquidate_avg_price"]
             else:
                 contract_income = contract["liquidate_quota"] + contract["open_quota"]
-
             settle_pnl += contract_income
-
         if open_amount != liquidate_amount:
             return False, 0.0
-
         return True, total_fee + settle_pnl
 
     def _cp_instance_and_gen_order(

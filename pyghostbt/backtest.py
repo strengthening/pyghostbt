@@ -305,7 +305,7 @@ class Backtest(Strategy):
         else:
             conn.execute(
                 "UPDATE {trade_type}_instance_{mode} SET symbol = ?, exchange = ?,"
-                " strategy = ?, status = ?, lever = ?,"
+                " strategy = ?, unit_amount = ?, status = ?, lever = ?,"
                 " wait_start_timestamp = ?, wait_start_datetime = ?,"
                 " wait_finish_timestamp = ?, wait_finish_datetime = ?,"
                 " open_times = ?, open_start_timestamp = ?, open_start_datetime = ?,"
@@ -317,7 +317,7 @@ class Backtest(Strategy):
                 " WHERE id = ?".format(trade_type=self["trade_type"], mode=self["mode"]),
                 (
                     self["symbol"], self["exchange"],
-                    self["strategy"], self["status"], self["lever"],
+                    self["strategy"], self["unit_amount"], self["status"], self["lever"],
                     self["wait_start_timestamp"], self["wait_start_datetime"],
                     self["wait_finish_timestamp"], self["wait_finish_datetime"],
 

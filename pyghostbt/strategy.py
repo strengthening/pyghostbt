@@ -236,11 +236,12 @@ class Strategy(Runtime):
              AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
             """
             insert_sql = """
-            INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status,
-             wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?) 
+            INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, unit_amount, status,
+             wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?, ?) 
             """
             params = (
-                self["symbol"], self["exchange"], self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
+                self["symbol"], self["exchange"], self["strategy"], self["unit_amount"],
+                INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
             )
 
         # 线上环境中应该查找对应的instance记录来确定最新的 id

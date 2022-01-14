@@ -100,9 +100,15 @@ class CommonOrder(dict):
 
         # 计算 fee
         if self._settle_mode == SETTLE_MODE_BASIS:
-            self["fee"] = real_number(self["deal_amount"]) * fee
+            if self["unit_amount"] > 1.0 or self["unit_amount"] < 1.0:
+                self["fee"] = self["deal_amount"] * self["unit_amount"] / real_number(self["avg_price"]) * fee
+            else:
+                self["fee"] = real_number(self["deal_amount"]) * fee
         else:
-            self["fee"] = real_number(self["deal_amount"]) * real_number(self["avg_price"]) * fee
+            if self["unit_amount"] > 1.0 or self["unit_amount"] < 1.0:
+                self["fee"] = self["deal_amount"] * self["unit_amount"] * real_number(self["avg_price"]) * fee
+            else:
+                self["fee"] = real_number(self["deal_amount"]) * real_number(self["avg_price"]) * fee
 
     def save(self, check: bool = False, raw_order_data: str = None, raw_market_data: str = None):
         if check:
@@ -119,14 +125,14 @@ class CommonOrder(dict):
             conn.execute(
                 "UPDATE {} SET place_type = ?, `type` = ?, price = ?, amount = ?,"
                 " avg_price = ?, deal_amount = ?, status = ?, lever = ?, fee = ?,"
-                " symbol = ?, exchange = ?, place_timestamp = ?, place_datetime = ?,"
+                " symbol = ?, exchange = ?, unit_amount = ?, place_timestamp = ?, place_datetime = ?,"
                 " deal_timestamp = ?, deal_datetime = ?, swap_timestamp = ?, swap_datetime = ?,"
                 " cancel_timestamp = ?, cancel_datetime = ?, raw_order_data = ?, raw_market_data = ?"
                 " WHERE instance_id = ? AND sequence = ?".format(self._table_name),
                 (
                     self["place_type"], self["type"], self["price"], self["amount"],
                     self["avg_price"], self["deal_amount"], self["status"], self["lever"], self["fee"],
-                    self["symbol"], self["exchange"], self["place_timestamp"], self["place_datetime"],
+                    self["symbol"], self["exchange"], self["unit_amount"], self["place_timestamp"], self["place_datetime"],
                     self["deal_timestamp"], self["deal_datetime"], self["swap_timestamp"], self["swap_datetime"],
                     self["cancel_timestamp"], self["cancel_datetime"], raw_order_data, raw_market_data,
                     self["instance_id"], self["sequence"],
@@ -136,16 +142,16 @@ class CommonOrder(dict):
             conn.insert(
                 "INSERT INTO {} (instance_id, sequence, place_type, `type`, price,"
                 " amount, avg_price, deal_amount, status, lever,"
-                " fee, symbol, exchange, place_timestamp, place_datetime, deal_timestamp, deal_datetime,"
+                " fee, symbol, exchange, unit_amount, place_timestamp, place_datetime, deal_timestamp, deal_datetime,"
                 " cancel_timestamp, cancel_datetime, raw_order_data, raw_market_data) VALUES"
-                " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(
+                " (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)".format(
                     self._table_name,
                 ),
                 (
                     self["instance_id"], self["sequence"], self["place_type"], self["type"], self["price"],
                     self["amount"], self["avg_price"], self["deal_amount"], self["status"], self["lever"],
-                    self["fee"], self["symbol"], self["exchange"], self["place_timestamp"], self["place_datetime"],
-                    self["deal_timestamp"], self["deal_datetime"],
+                    self["fee"], self["symbol"], self["exchange"], self["unit_amount"],
+                    self["place_timestamp"], self["place_datetime"], self["deal_timestamp"], self["deal_datetime"],
                     self["cancel_timestamp"], self["cancel_datetime"],
                     raw_order_data, raw_market_data,
                 ),
@@ -354,16 +360,16 @@ class FutureOrder(CommonOrder):
             raise RuntimeError("Error order type")
 
         # 计算 fee
-        if self._trade_type == TRADE_TYPE_FUTURE and self._settle_mode == SETTLE_MODE_BASIS:
-            self["fee"] = self["amount"] * self["unit_amount"] * fee / real_number(self["avg_price"])
-        elif self._trade_type == TRADE_TYPE_FUTURE and self._settle_mode == SETTLE_MODE_COUNTER:
-            self["fee"] = self["amount"] * self["unit_amount"] * fee
-        elif self._trade_type != TRADE_TYPE_FUTURE and self._settle_mode == SETTLE_MODE_BASIS:
-            self["fee"] = real_number(self["amount"]) * fee
-        elif self._trade_type != TRADE_TYPE_FUTURE and self._settle_mode == SETTLE_MODE_COUNTER:
-            self["fee"] = real_number(self["amount"]) * real_number(self["avg_price"]) * fee
+        if self._settle_mode == SETTLE_MODE_BASIS:
+            if self["unit_amount"] > 1.0 or self["unit_amount"] < 1.0:
+                self["fee"] = self["deal_amount"] * self["unit_amount"] / real_number(self["avg_price"]) * fee
+            else:
+                self["fee"] = real_number(self["deal_amount"]) * fee
         else:
-            raise RuntimeError("Error trade_type or settle_mode")
+            if self["unit_amount"] > 1.0 or self["unit_amount"] < 1.0:
+                self["fee"] = self["deal_amount"] * self["unit_amount"] * real_number(self["avg_price"]) * fee
+            else:
+                self["fee"] = real_number(self["deal_amount"]) * real_number(self["avg_price"]) * fee
 
     def save(self, check: bool = False, raw_order_data: str = None, raw_market_data: str = None):
         if check:

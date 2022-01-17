@@ -363,11 +363,12 @@ class Backtest(Strategy):
         conn = Conn(self["db_name"])
         conn.execute(
             "UPDATE {trade_type}_instance_backtest SET wait_finish_timestamp = ?, wait_finish_datetime = ?,"
-            " status = ? WHERE id = ?".format(trade_type=self["trade_type"]),
+            " status = ?, unit_amount = ? WHERE id = ?".format(trade_type=self["trade_type"]),
             (
                 self["open_expired_timestamp"],
                 self["open_expired_datetime"],
                 instance_status,
+                self["unit_amount"],
                 self["id"],
             ),
         )

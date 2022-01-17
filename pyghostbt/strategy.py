@@ -237,7 +237,7 @@ class Strategy(Runtime):
             """
             insert_sql = """
             INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status,
-             wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?, ?) 
+             wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?) 
             """
             params = (
                 self["symbol"], self["exchange"], self["strategy"],

@@ -550,6 +550,7 @@ class Strategy(Runtime):
 
         total_fee: float = 0.0
         liquidate_amount: int = 0
+        liquidate_deal_amount: float = 0
         open_amount: int = 0
         open_quota: float = 0.0
         liquidate_quota: float = 0.0
@@ -580,9 +581,11 @@ class Strategy(Runtime):
                 open_quota += avg_price * deal_amount
             elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
                 liquidate_amount += order["deal_amount"]
+                liquidate_deal_amount += deal_amount
                 liquidate_quota += avg_price * deal_amount
             elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
                 liquidate_amount += order["deal_amount"]
+                liquidate_deal_amount += deal_amount
                 liquidate_quota -= avg_price * deal_amount
             else:
                 raise RuntimeError("the order type is not right. ")
@@ -591,7 +594,7 @@ class Strategy(Runtime):
 
         settle_pnl = open_quota + liquidate_quota
         if settle_mode == SETTLE_MODE_BASIS:
-            settle_pnl = settle_pnl / abs(liquidate_quota / real_number(liquidate_amount))
+            settle_pnl = settle_pnl / abs(liquidate_quota / liquidate_deal_amount)
 
         return True, total_fee + settle_pnl
 

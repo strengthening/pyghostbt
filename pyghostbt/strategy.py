@@ -575,18 +575,36 @@ class Strategy(Runtime):
 
             if order["type"] == ORDER_TYPE_OPEN_LONG:
                 open_amount += order["deal_amount"]
-                open_quota -= avg_price * deal_amount
+
+                if unit_amount > 1.0 or unit_amount < 1.0:
+                    # if settle_mode == SETTLE_MODE_BASIS:
+                    #     open_quota -= order["deal_amount"] * unit_amount
+                    # else:
+                    open_quota -= avg_price * order["deal_amount"] * unit_amount
+                else:
+                    open_quota -= avg_price * deal_amount
+
             elif order["type"] == ORDER_TYPE_OPEN_SHORT:
                 open_amount += order["deal_amount"]
-                open_quota += avg_price * deal_amount
+                if unit_amount > 1.0 or unit_amount < 1.0:
+                    open_quota += avg_price * order["deal_amount"] * unit_amount
+                else:
+                    open_quota += avg_price * deal_amount
+
             elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
                 liquidate_amount += order["deal_amount"]
                 liquidate_deal_amount += deal_amount
-                liquidate_quota += avg_price * deal_amount
+                if unit_amount > 1.0 or unit_amount < 1.0:
+                    liquidate_quota += avg_price * order["deal_amount"] * unit_amount
+                else:
+                    liquidate_quota += avg_price * deal_amount
             elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
                 liquidate_amount += order["deal_amount"]
                 liquidate_deal_amount += deal_amount
-                liquidate_quota -= avg_price * deal_amount
+                if unit_amount > 1.0 or unit_amount < 1.0:
+                    liquidate_quota -= avg_price * order["deal_amount"] * unit_amount
+                else:
+                    liquidate_quota -= avg_price * deal_amount
             else:
                 raise RuntimeError("the order type is not right. ")
         if open_amount != liquidate_amount:
@@ -594,11 +612,9 @@ class Strategy(Runtime):
 
         settle_pnl = open_quota + liquidate_quota
         if settle_mode == SETTLE_MODE_BASIS:
-            liquidate_price = abs(liquidate_quota / liquidate_deal_amount)
-            settle_pnl /= liquidate_price
-        print(unit_amount, total_fee, settle_pnl)
-        print("~~~~~~~~~~~~~~~~~~~")
-        print(liquidate_quota, liquidate_deal_amount)
+            settle_pnl /= abs(open_quota / open_amount / unit_amount)  # 除以open_price
+            settle_pnl /= abs(liquidate_quota / liquidate_amount / unit_amount)  # 除以liquidate_price
+
         return True, total_fee + settle_pnl
 
     def _settle_future_pnl(self, settle_mode) -> Tuple[bool, float]:

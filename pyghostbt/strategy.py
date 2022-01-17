@@ -596,8 +596,9 @@ class Strategy(Runtime):
         if settle_mode == SETTLE_MODE_BASIS:
             liquidate_price = abs(liquidate_quota / liquidate_deal_amount)
             settle_pnl /= liquidate_price
-        print(total_fee, settle_pnl)
+        print(unit_amount, total_fee, settle_pnl)
         print("~~~~~~~~~~~~~~~~~~~")
+        print(liquidate_quota, liquidate_deal_amount)
         return True, total_fee + settle_pnl
 
     def _settle_future_pnl(self, settle_mode) -> Tuple[bool, float]:

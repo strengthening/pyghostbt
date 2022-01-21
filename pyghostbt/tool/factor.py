@@ -9,7 +9,12 @@ factor_input = {
     "properties": {
         "trade_type": {
             "type": "string",
-            "enum": [TRADE_TYPE_FUTURE, TRADE_TYPE_SWAP, TRADE_TYPE_MARGIN, TRADE_TYPE_SPOT],
+            "enum": [
+                TRADE_TYPE_FUTURE,
+                TRADE_TYPE_SWAP,
+                TRADE_TYPE_MARGIN,
+                TRADE_TYPE_SPOT,
+            ],
         },
         "symbol": {
             "type": "string",
@@ -18,13 +23,26 @@ factor_input = {
         "interval": {
             "type": ["null", "string"],
             "enum": [
-                None, INTERVAL_1MIN, INTERVAL_15MIN, INTERVAL_1HOUR,
-                INTERVAL_4HOUR, INTERVAL_8HOUR, INTERVAL_1DAY, INTERVAL_1WEEK,
+                None,
+                INTERVAL_1MIN,
+                INTERVAL_15MIN,
+                INTERVAL_1HOUR,
+                INTERVAL_4HOUR,
+                INTERVAL_8HOUR,
+                INTERVAL_1DAY,
+                INTERVAL_1WEEK,
             ],
         },
         "contract_type": {
             "type": ["null", "string"],
-            "enum": [None, CONTRACT_TYPE_THIS_WEEK, CONTRACT_TYPE_NEXT_WEEK, CONTRACT_TYPE_QUARTER, CONTRACT_TYPE_NONE],
+            "enum": [
+                None,
+                CONTRACT_TYPE_THIS_WEEK,
+                CONTRACT_TYPE_NEXT_WEEK,
+                CONTRACT_TYPE_QUARTER,
+                CONTRACT_TYPE_NEXT_QUARTER,
+                CONTRACT_TYPE_NONE,
+            ],
         },
         "db_name": {
             "type": "string",

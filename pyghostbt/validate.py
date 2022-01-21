@@ -32,6 +32,7 @@ INSTANCE_VALIDATE = {
                 CONTRACT_TYPE_THIS_WEEK,
                 CONTRACT_TYPE_NEXT_WEEK,
                 CONTRACT_TYPE_QUARTER,
+                CONTRACT_TYPE_NEXT_QUARTER,
                 CONTRACT_TYPE_NONE,
             ],
         },

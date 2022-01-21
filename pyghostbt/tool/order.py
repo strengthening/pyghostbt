@@ -236,6 +236,7 @@ future_order_init = {
                 CONTRACT_TYPE_THIS_WEEK,
                 CONTRACT_TYPE_NEXT_WEEK,
                 CONTRACT_TYPE_QUARTER,
+                CONTRACT_TYPE_NEXT_QUARTER,
             ],
         },
         "place_type": {

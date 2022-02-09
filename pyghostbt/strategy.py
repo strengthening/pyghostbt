@@ -549,10 +549,9 @@ class Strategy(Runtime):
             return self._settle_future_pnl(settle_mode)
 
         total_fee: float = 0.0
-        liquidate_amount: int = 0
-        liquidate_deal_amount: float = 0
         open_amount: int = 0
         open_quota: float = 0.0
+        liquidate_amount: int = 0
         liquidate_quota: float = 0.0
         unit_amount: float = self.get("unit_amount") or 1.0
 
@@ -561,50 +560,32 @@ class Strategy(Runtime):
             if order["status"] == ORDER_STATUS_FAIL:
                 return False, 0.0
 
-            avg_price = real_number(order["avg_price"])
-            if unit_amount > 1.0 or unit_amount < 1.0:
-                # okex
-                if settle_mode == SETTLE_MODE_BASIS:
-                    deal_amount = order["deal_amount"] * unit_amount / avg_price
-                else:
-                    deal_amount = order["deal_amount"] * unit_amount
-            else:
-                # binance
-                deal_amount = real_number(order["deal_amount"])
             total_fee += order["fee"]
-
+            avg_price = real_number(order["avg_price"])
             if order["type"] == ORDER_TYPE_OPEN_LONG:
                 open_amount += order["deal_amount"]
-
                 if unit_amount > 1.0 or unit_amount < 1.0:
-                    # if settle_mode == SETTLE_MODE_BASIS:
-                    #     open_quota -= order["deal_amount"] * unit_amount
-                    # else:
                     open_quota -= avg_price * order["deal_amount"] * unit_amount
                 else:
-                    open_quota -= avg_price * deal_amount
-
+                    open_quota -= avg_price * real_number(order["deal_amount"])
             elif order["type"] == ORDER_TYPE_OPEN_SHORT:
                 open_amount += order["deal_amount"]
                 if unit_amount > 1.0 or unit_amount < 1.0:
                     open_quota += avg_price * order["deal_amount"] * unit_amount
                 else:
-                    open_quota += avg_price * deal_amount
-
+                    open_quota += avg_price * real_number(order["deal_amount"])
             elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
                 liquidate_amount += order["deal_amount"]
-                liquidate_deal_amount += deal_amount
                 if unit_amount > 1.0 or unit_amount < 1.0:
                     liquidate_quota += avg_price * order["deal_amount"] * unit_amount
                 else:
-                    liquidate_quota += avg_price * deal_amount
+                    liquidate_quota += avg_price * real_number(order["deal_amount"])
             elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
                 liquidate_amount += order["deal_amount"]
-                liquidate_deal_amount += deal_amount
                 if unit_amount > 1.0 or unit_amount < 1.0:
                     liquidate_quota -= avg_price * order["deal_amount"] * unit_amount
                 else:
-                    liquidate_quota -= avg_price * deal_amount
+                    liquidate_quota -= avg_price * real_number(order["deal_amount"])
             else:
                 raise RuntimeError("the order type is not right. ")
         if open_amount != liquidate_amount:
@@ -619,30 +600,22 @@ class Strategy(Runtime):
 
     def _settle_future_pnl(self, settle_mode) -> Tuple[bool, float]:
         orders = self._get_orders()
-        settle_pnl, total_fee, open_amount, liquidate_amount = 0.0, 0.0, 0, 0
+        settle_pnl, total_fee = 0.0, 0.0
+        open_amount, liquidate_amount = 0, 0
+        unit_amount: float = self.get("unit_amount") or 1.0
         contract_kv = {}
 
         for order in orders:
             if order["status"] == ORDER_STATUS_FAIL:
                 return False, 0.0
             avg_price = real_number(order["avg_price"])
-            deal_amount = real_number(order["deal_amount"])
-            if order["unit_amount"] > 1.0 or order["unit_amount"] < 1.0:
-                if settle_mode == SETTLE_MODE_BASIS:
-                    deal_amount = order["deal_amount"] * order["unit_amount"] / avg_price
-                else:
-                    deal_amount = order["deal_amount"] * order["unit_amount"]
-
             total_fee += order["fee"]
             if order["due_timestamp"] not in contract_kv:
                 contract_kv[order["due_timestamp"]] = {
                     "open_amount": 0,
-                    "open_sum": 0,
                     "open_quota": 0,
 
                     "liquidate_amount": 0,
-                    "liquidate_deal_amount": 0,
-                    "liquidate_sum": 0,
                     "liquidate_quota": 0,
                 }
 
@@ -650,47 +623,54 @@ class Strategy(Runtime):
                 open_amount += order["deal_amount"]
                 contract = contract_kv[order["due_timestamp"]]
                 contract["open_amount"] += order["deal_amount"]
-                contract["open_sum"] -= order["deal_amount"] * avg_price
-                contract["open_quota"] -= deal_amount * avg_price
+                if unit_amount > 1.0 or unit_amount < 1.0:
+                    contract["open_quota"] -= order["deal_amount"] * avg_price * unit_amount
+                else:
+                    contract["open_quota"] -= real_number(order["deal_amount"]) * avg_price
             elif order["type"] == ORDER_TYPE_OPEN_SHORT:
                 open_amount += order["deal_amount"]
                 contract = contract_kv[order["due_timestamp"]]
                 contract["open_amount"] += order["deal_amount"]
-                contract["open_sum"] += order["deal_amount"] * avg_price
-                contract["open_quota"] += deal_amount * avg_price
+                if unit_amount > 1.0 or unit_amount < 1.0:
+                    contract["open_quota"] += order["deal_amount"] * avg_price * unit_amount
+                else:
+                    contract["open_quota"] += real_number(order["deal_amount"]) * avg_price
             elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
                 liquidate_amount += order["deal_amount"]
                 contract = contract_kv[order["due_timestamp"]]
                 contract["liquidate_amount"] += order["deal_amount"]
-                contract["liquidate_deal_amount"] += deal_amount
-                contract["liquidate_sum"] += order["deal_amount"] * avg_price
-                contract["liquidate_quota"] += deal_amount * avg_price
-                contract["liquidate_avg_price"] = contract["liquidate_quota"] / contract["liquidate_deal_amount"]
+                if unit_amount > 1.0 or unit_amount < 1.0:
+                    contract["liquidate_quota"] += order["deal_amount"] * avg_price * unit_amount
+                else:
+                    contract["liquidate_quota"] += real_number(order["deal_amount"]) * avg_price
             elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
                 liquidate_amount += order["deal_amount"]
                 contract = contract_kv[order["due_timestamp"]]
                 contract["liquidate_amount"] += order["deal_amount"]
-                contract["liquidate_deal_amount"] += deal_amount
-                contract["liquidate_sum"] -= order["deal_amount"] * avg_price
-                contract["liquidate_quota"] -= deal_amount * avg_price
-                contract["liquidate_avg_price"] = -contract["liquidate_quota"] / contract["liquidate_deal_amount"]
+                if unit_amount > 1.0 or unit_amount < 1.0:
+                    contract["liquidate_quota"] -= order["deal_amount"] * avg_price * unit_amount
+                else:
+                    contract["liquidate_quota"] -= real_number(order["deal_amount"]) * avg_price
             else:
                 raise RuntimeError("the order type is not right. ")
+
+        if open_amount != liquidate_amount:
+            return False, 0.0
 
         # 计算各个contract的盈利损失情况。
         for due_timestamp in contract_kv:
             contract = contract_kv[due_timestamp]
             if contract["open_amount"] != contract["liquidate_amount"]:
                 return False, 0.0
+
+            contract_settle_pnl = contract["liquidate_quota"] + contract["open_quota"]
             if settle_mode == SETTLE_MODE_BASIS:
-                contract_income = contract["liquidate_quota"] + contract["open_quota"]
-                contract_income = contract_income / contract["liquidate_avg_price"]
-            else:
-                contract_income = contract["liquidate_quota"] + contract["open_quota"]
-            settle_pnl += contract_income
-        if open_amount != liquidate_amount:
-            return False, 0.0
-        return True, total_fee + settle_pnl
+                # 除以open_price
+                contract_settle_pnl /= abs(contract["open_quota"] / contract["open_amount"] / unit_amount)
+                # 除以liquidate_price
+                contract_settle_pnl /= abs(contract["liquidate_quota"] / contract["liquidate_amount"] / unit_amount)
+            settle_pnl += contract_settle_pnl
+        return True, settle_pnl + total_fee
 
     def _cp_instance_and_gen_order(
             self,

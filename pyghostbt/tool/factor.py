@@ -90,6 +90,18 @@ class Factor(object):
         meta = self.get_metadata(factor_name)
         return self._value_by_id(meta["factor_id"], timestamp)
 
+    def get_spot_value(self, factor_name: str, timestamp: int):
+        conn = Conn(self._db_name)
+        meta = conn.query_one(
+            "SELECT * FROM factor_metadata"
+            " WHERE symbol = ? AND trade_type = ? AND contract_type = ?"
+            " AND `interval` = ? AND factor_name = ? ",
+            (self._symbol, TRADE_TYPE_SPOT, CONTRACT_TYPE_NONE, self._interval, factor_name),
+        )
+        if meta is None:
+            return None
+        return self._value_by_id(meta["factor_id"], timestamp)
+
     def get_values(self, factor_name: str, start_timestamp: int, finish_timestamp: int) -> List[float]:
         meta = self.get_metadata(factor_name)
         return self._values_by_id(meta["factor_id"], start_timestamp, finish_timestamp)

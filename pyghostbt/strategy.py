@@ -140,7 +140,7 @@ class Strategy(Runtime):
             INSTANCE_STATUS_WAITING, 0,
         )
         params_backtest = (
-            self["backtest_id"], self["symbol"], self["exchange"], self["strategy"],
+            self.get("backtest_id"), self["symbol"], self["exchange"], self["strategy"],
             INSTANCE_STATUS_WAITING, 0,
         )
 
@@ -154,7 +154,7 @@ class Strategy(Runtime):
                 self["strategy"], INSTANCE_STATUS_WAITING, 0,
             )
             params_backtest = (
-                self["backtest_id"], self["symbol"], self["exchange"], self["contract_type"],
+                self.get("backtest_id"), self["symbol"], self["exchange"], self["contract_type"],
                 self["strategy"], INSTANCE_STATUS_WAITING, 0,
             )
         item = conn.query_one(

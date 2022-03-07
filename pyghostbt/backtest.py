@@ -10,6 +10,7 @@ from pyghostbt.tool.indices import Indices
 from pyghostbt.tool.asset import Asset
 from pyghostbt.const import *
 from pyanalysis.mysql import Conn
+from pyanalysis.moment import moment
 
 
 class Backtest(Strategy):
@@ -18,6 +19,134 @@ class Backtest(Strategy):
 
         # self._slippage = 0.01  # 滑点百分比
         # self._fee = -0.0005  # 手续费比例
+
+    # 获取instance 风险等级。
+    def _get_risk_level(self, timestamp: int, instance_id: int) -> int:
+        conn = Conn(self["db_name"])
+        table_name = "{trade_type}_instance_backtest".format(trade_type=self["trade_type"])
+        query_sql = """
+        SELECT id FROM {} WHERE backtest_id = ? AND symbol = ? AND exchange = ?
+         AND strategy = ? AND open_start_timestamp < ? AND (liquidate_finish_timestamp > ? OR status in (?,?)) 
+         ORDER BY open_start_timestamp, id
+        """
+        params = (
+            self["backtest_id"],
+            self["symbol"],
+            self["exchange"],
+            self["strategy"],
+            timestamp,
+            timestamp,
+            INSTANCE_STATUS_OPENING,
+            INSTANCE_STATUS_LIQUIDATING,
+        )
+        instances = conn.query(
+            query_sql.format(table_name),
+            params,
+        )
+
+        instance_ids = [i["id"] for i in instances]
+        risk_level = len(instance_ids)
+        if instance_id in instance_ids:
+            risk_level = instance_ids.index(instance_id)
+        return risk_level
+
+    def _get_waiting_instance_id(self) -> int:
+        conn = Conn(self["db_name"])
+        query_sql = """
+        SELECT id FROM {trade_type}_instance_backtest WHERE backtest_id = ? AND symbol = ? AND exchange = ? AND strategy = ?
+        AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
+        """
+        params = (
+            self["backtest_id"], self["symbol"], self["exchange"], self["strategy"],
+            INSTANCE_STATUS_WAITING, 0,
+        )
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            query_sql = """
+            SELECT id FROM {trade_type}_instance_backtest WHERE backtest_id = ? AND symbol = ? AND exchange = ? 
+            AND contract_type = ? AND strategy = ? AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
+            """
+            params = (
+                self["backtest_id"], self["symbol"], self["exchange"], self["contract_type"],
+                self["strategy"], INSTANCE_STATUS_WAITING, 0,
+            )
+
+        item = conn.query_one(
+            query_sql.format(trade_type=self["trade_type"]),
+            params,
+        )
+        return item["id"] if item else 0
+
+    def _is_opened(self, wait_start_timestamp: int) -> bool:
+        conn = Conn(self["db_name"])
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            opened = conn.query(
+                "SELECT id FROM future_instance_backtest WHERE backtest_id = ? AND symbol = ? AND exchange = ?"
+                " AND contract_type = ? AND strategy = ? AND wait_start_timestamp = ? AND status > ?",
+                (
+                    self["backtest_id"], self["symbol"], self["exchange"],
+                    self["contract_type"], self["strategy"], wait_start_timestamp, INSTANCE_STATUS_WAITING,
+                ),
+            )
+            return len(opened) > 0
+
+        opened = conn.query(
+            "SELECT id FROM {trade_type}_instance_backtest WHERE backtest_id = ? AND symbol = ? AND exchange = ? AND"
+            " strategy = ? AND wait_start_timestamp = ? AND status > ?".format(trade_type=self["trade_type"]),
+            (
+                self["backtest_id"], self["symbol"], self["exchange"],
+                self["strategy"], wait_start_timestamp, INSTANCE_STATUS_WAITING,
+            ),
+        )
+        return len(opened) > 0
+
+    def get_waiting(self, timestamp) -> (List[dict], str):
+        # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
+        query_sql = """
+        SELECT id FROM {trade_type}_instance_backtest WHERE symbol = ? AND exchange = ?
+         AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
+        """
+        insert_sql = """
+        INSERT INTO {trade_type}_instance_backtest (symbol, exchange, strategy, status,
+         wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?) 
+        """
+        params = (
+            self["symbol"], self["exchange"], self["strategy"],
+            INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
+        )
+
+        if self["trade_type"] == TRADE_TYPE_FUTURE:
+            query_sql = """
+            SELECT id FROM {trade_type}_instance_backtest WHERE symbol = ? AND exchange = ? AND contract_type = ?
+             AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
+            """
+            insert_sql = """
+            INSERT INTO {trade_type}_instance_backtest (symbol, exchange, contract_type, strategy, status,
+             wait_start_timestamp, backtest_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?) 
+            """
+            params = (
+                self["symbol"], self["exchange"], self["contract_type"],
+                self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
+            )
+
+        conn = Conn(self["db_name"])
+        # 线上环境中应该查找对应的instance记录来确定最新的 id
+        one = conn.query_one(
+            query_sql.format(trade_type=self["trade_type"]),
+            params
+        )
+        if one:
+            self.__setitem__("id", one["id"])
+
+        # 回测时生成对应的 id
+        if one is None:
+            last_insert_id = conn.insert(
+                insert_sql.format(trade_type=self["trade_type"]),
+                params,
+            )
+            self.__setitem__("id", last_insert_id)
+
+        return [], ""
 
     def __compare_candle_with_instance(self, candle: dict, instance: dict) -> dict:
         """

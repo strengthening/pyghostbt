@@ -92,7 +92,6 @@ class Strategy(Runtime):
         )
 
         m = moment.get(timestamp).to(self.get("timezone") or "Asia/Shanghai").floor("day")
-
         query_sql = """
         SELECT id FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
         AND (status IN (?, ?, ?) OR ( status = ? AND liquidate_finish_timestamp > ? )) ORDER BY open_start_timestamp, id
@@ -133,29 +132,38 @@ class Strategy(Runtime):
     def _get_waiting_instance_id(self) -> int:
         conn = Conn(self["db_name"])
         query_sql = """
-        SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ?
+        SELECT id FROM {trade_type}_instance_{mode} WHERE {backtest_sql}symbol = ? AND exchange = ? AND strategy = ?
         AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
         """
         params = (
             self["symbol"], self["exchange"], self["strategy"],
             INSTANCE_STATUS_WAITING, 0,
         )
+        params_backtest = (
+            self["backtest_id"], self["symbol"], self["exchange"], self["strategy"],
+            INSTANCE_STATUS_WAITING, 0,
+        )
 
         if self["trade_type"] == TRADE_TYPE_FUTURE:
             query_sql = """
-            SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ? 
-            AND strategy = ? AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
+            SELECT id FROM {trade_type}_instance_{mode} WHERE {backtest_sql}symbol = ? AND exchange = ? 
+            AND contract_type = ? AND strategy = ? AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
             """
             params = (
                 self["symbol"], self["exchange"], self["contract_type"],
+                self["strategy"], INSTANCE_STATUS_WAITING, 0,
+            )
+            params_backtest = (
+                self["backtest_id"], self["symbol"], self["exchange"], self["contract_type"],
                 self["strategy"], INSTANCE_STATUS_WAITING, 0,
             )
         item = conn.query_one(
             query_sql.format(
                 trade_type=self["trade_type"],
                 mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+                backtest_sql="backtest_id = ? AND " if self["mode"] == MODE_BACKTEST else "",
             ),
-            params
+            params_backtest if self["mode"] == MODE_BACKTEST else params,
         )
         return item["id"] if item else 0
 
@@ -187,7 +195,7 @@ class Strategy(Runtime):
         )
         return len(opened) > 0
 
-    def get_waiting(self, timestamp):
+    def get_waiting(self, timestamp) -> (List[dict], str):
         # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
         conn = Conn(self["db_name"])
         query_sql = """
@@ -264,6 +272,7 @@ class Strategy(Runtime):
                 params,
             )
             self.__setitem__("id", last_insert_id)
+        return [], ""
 
     def get_opening(self, timestamp: int) -> list:
         if self["mode"] not in (MODE_BACKTEST, MODE_STRATEGY):
@@ -475,75 +484,6 @@ class Strategy(Runtime):
             opening_avg_price = opened_quota / opening_amount
         return start_sequence, opened_times, opening_avg_price, opened_prices, opened_amounts, opening_amounts, opening_quota
 
-    def _analysis_orders2(self, due_ts: int) -> tuple:
-        """
-        :param due_ts: the due timestamp now.
-        :return:
-
-            start_sequence: next sequence
-            opening_avg_price: the opening avg price in instance.
-            order price array: the orders price of instance.
-            order amount array: the orders amount of instance.
-            opening_amount map with due_ts: {due_ts: opening_amount}
-            opening_quota map with due_ts: {due_ts: opening_quota}
-
-        """
-
-        orders = self._get_orders()
-        if len(orders) == 0:
-            return -1, 0, 0, [], [], {}, {}
-
-        opened_times = 0
-        opened_quota = 0
-        start_sequence = orders[-1]["sequence"] + 1
-        opened_prices = []
-        opened_amounts = []
-
-        # spot swap margin 交易没有due_timestamp的概念，故设置为0
-        if due_ts is None:
-            due_ts = 0
-        opening_amounts, opening_quota = {due_ts: 0}, {due_ts: 0}
-
-        for order in orders:
-            if order.get("status") == ORDER_STATUS_FAIL:
-                return -1, 0, 0, [], [], {}, {}
-            if order.get("status") == ORDER_STATUS_UNFINISH:
-                return -1, 0, 0, [], [], {}, {}
-
-            order_due_ts = order.get("due_timestamp") or 0
-            if order_due_ts not in opening_amounts:
-                opening_amounts[order_due_ts] = 0
-                opening_quota[order_due_ts] = 0
-
-            if order["type"] in (ORDER_TYPE_OPEN_LONG, ORDER_TYPE_OPEN_SHORT):
-                opening_amounts[order_due_ts] += order["deal_amount"]
-                opening_quota[order_due_ts] += order["deal_amount"] * order["avg_price"]
-                opened_quota += order["deal_amount"] * order["avg_price"]
-                if order["place_type"] != ORDER_PLACE_TYPE_O_SWAP:
-                    opened_prices.append(order["price"])
-                    opened_amounts.append(order["amount"])
-                    opened_times += 1
-            elif order["type"] in (ORDER_TYPE_LIQUIDATE_LONG, ORDER_TYPE_LIQUIDATE_SHORT):
-                opening_amounts[order_due_ts] -= order["deal_amount"]
-                # 已经平仓完毕，则既往不咎。
-                if order["place_type"] != ORDER_PLACE_TYPE_L_SWAP and opening_amounts[order_due_ts] == 0:
-                    opened_quota = 0
-                else:
-                    opened_quota -= order["deal_amount"] * order["avg_price"]
-
-                if opening_amounts[order_due_ts] == 0:
-                    opening_quota[order_due_ts] = 0
-                else:
-                    opening_quota[order_due_ts] -= order["deal_amount"] * order["avg_price"]
-            else:
-                raise RuntimeError("Not found the order type")
-
-        opening_amount = sum([opening_amounts[ts] for ts in opening_amounts])
-        opening_avg_price = 0
-        if opening_amount > 0:
-            opening_avg_price = opened_quota / opening_amount
-        return start_sequence, opened_times, opening_avg_price, opened_prices, opened_amounts, opening_amounts, opening_quota
-
     def _settle_pnl(self, settle_mode=SETTLE_MODE_BASIS) -> Tuple[bool, float]:
         orders = self._get_orders()
         settle_pnl, total_fee = 0.0, 0.0
@@ -554,7 +494,7 @@ class Strategy(Runtime):
         for order in orders:
             if order["status"] == ORDER_STATUS_FAIL:
                 return False, 0.0
-            due_timestamp: int = order.get("due_timestamp") or 0 # the spot or swap or margin have no due_timestamp
+            due_timestamp: int = order.get("due_timestamp") or 0  # the spot or swap or margin have no due_timestamp
             avg_price = real_number(order["avg_price"])
             total_fee += order["fee"]
             if due_timestamp not in contract_kv:
@@ -618,133 +558,6 @@ class Strategy(Runtime):
                 contract_settle_pnl /= abs(contract["liquidate_quota"] / contract["liquidate_amount"] / unit_amount)
             settle_pnl += contract_settle_pnl
         return True, settle_pnl + total_fee
-
-        # if self["trade_type"] == TRADE_TYPE_FUTURE:
-        #     return self._settle_future_pnl(settle_mode)
-        #
-        # total_fee: float = 0.0
-        # open_amount: int = 0
-        # open_quota: float = 0.0
-        # liquidate_amount: int = 0
-        # liquidate_quota: float = 0.0
-        # unit_amount: float = self.get("unit_amount") or 1.0
-        #
-        # orders = self._get_orders()
-        # for order in orders:
-        #     if order["status"] == ORDER_STATUS_FAIL:
-        #         return False, 0.0
-        #
-        #     total_fee += order["fee"]
-        #     avg_price = real_number(order["avg_price"])
-        #     if order["type"] == ORDER_TYPE_OPEN_LONG:
-        #         open_amount += order["deal_amount"]
-        #         if unit_amount > 1.0 or unit_amount < 1.0:
-        #             open_quota -= avg_price * order["deal_amount"] * unit_amount
-        #         else:
-        #             open_quota -= avg_price * real_number(order["deal_amount"])
-        #     elif order["type"] == ORDER_TYPE_OPEN_SHORT:
-        #         open_amount += order["deal_amount"]
-        #         if unit_amount > 1.0 or unit_amount < 1.0:
-        #             open_quota += avg_price * order["deal_amount"] * unit_amount
-        #         else:
-        #             open_quota += avg_price * real_number(order["deal_amount"])
-        #     elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
-        #         liquidate_amount += order["deal_amount"]
-        #         if unit_amount > 1.0 or unit_amount < 1.0:
-        #             liquidate_quota += avg_price * order["deal_amount"] * unit_amount
-        #         else:
-        #             liquidate_quota += avg_price * real_number(order["deal_amount"])
-        #     elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
-        #         liquidate_amount += order["deal_amount"]
-        #         if unit_amount > 1.0 or unit_amount < 1.0:
-        #             liquidate_quota -= avg_price * order["deal_amount"] * unit_amount
-        #         else:
-        #             liquidate_quota -= avg_price * real_number(order["deal_amount"])
-        #     else:
-        #         raise RuntimeError("the order type is not right. ")
-        # if open_amount != liquidate_amount:
-        #     return False, 0.0
-        #
-        # settle_pnl = open_quota + liquidate_quota
-        # if settle_mode == SETTLE_MODE_BASIS:
-        #     settle_pnl /= abs(open_quota / open_amount / unit_amount)  # 除以open_price
-        #     settle_pnl /= abs(liquidate_quota / liquidate_amount / unit_amount)  # 除以liquidate_price
-        #
-        # return True, total_fee + settle_pnl
-
-    # def _settle_future_pnl(self, settle_mode) -> Tuple[bool, float]:
-    #     orders = self._get_orders()
-    #     settle_pnl, total_fee = 0.0, 0.0
-    #     open_amount, liquidate_amount = 0, 0
-    #     unit_amount: float = self.get("unit_amount") or 1.0
-    #     contract_kv = {}
-    #
-    #     for order in orders:
-    #         if order["status"] == ORDER_STATUS_FAIL:
-    #             return False, 0.0
-    #         avg_price = real_number(order["avg_price"])
-    #         total_fee += order["fee"]
-    #         if order["due_timestamp"] not in contract_kv:
-    #             contract_kv[order["due_timestamp"]] = {
-    #                 "open_amount": 0,
-    #                 "open_quota": 0,
-    #
-    #                 "liquidate_amount": 0,
-    #                 "liquidate_quota": 0,
-    #             }
-    #
-    #         if order["type"] == ORDER_TYPE_OPEN_LONG:
-    #             open_amount += order["deal_amount"]
-    #             contract = contract_kv[order["due_timestamp"]]
-    #             contract["open_amount"] += order["deal_amount"]
-    #             if unit_amount > 1.0 or unit_amount < 1.0:
-    #                 contract["open_quota"] -= order["deal_amount"] * avg_price * unit_amount
-    #             else:
-    #                 contract["open_quota"] -= real_number(order["deal_amount"]) * avg_price
-    #         elif order["type"] == ORDER_TYPE_OPEN_SHORT:
-    #             open_amount += order["deal_amount"]
-    #             contract = contract_kv[order["due_timestamp"]]
-    #             contract["open_amount"] += order["deal_amount"]
-    #             if unit_amount > 1.0 or unit_amount < 1.0:
-    #                 contract["open_quota"] += order["deal_amount"] * avg_price * unit_amount
-    #             else:
-    #                 contract["open_quota"] += real_number(order["deal_amount"]) * avg_price
-    #         elif order["type"] == ORDER_TYPE_LIQUIDATE_LONG:
-    #             liquidate_amount += order["deal_amount"]
-    #             contract = contract_kv[order["due_timestamp"]]
-    #             contract["liquidate_amount"] += order["deal_amount"]
-    #             if unit_amount > 1.0 or unit_amount < 1.0:
-    #                 contract["liquidate_quota"] += order["deal_amount"] * avg_price * unit_amount
-    #             else:
-    #                 contract["liquidate_quota"] += real_number(order["deal_amount"]) * avg_price
-    #         elif order["type"] == ORDER_TYPE_LIQUIDATE_SHORT:
-    #             liquidate_amount += order["deal_amount"]
-    #             contract = contract_kv[order["due_timestamp"]]
-    #             contract["liquidate_amount"] += order["deal_amount"]
-    #             if unit_amount > 1.0 or unit_amount < 1.0:
-    #                 contract["liquidate_quota"] -= order["deal_amount"] * avg_price * unit_amount
-    #             else:
-    #                 contract["liquidate_quota"] -= real_number(order["deal_amount"]) * avg_price
-    #         else:
-    #             raise RuntimeError("the order type is not right. ")
-    #
-    #     if open_amount != liquidate_amount:
-    #         return False, 0.0
-    #
-    #     # 计算各个contract的盈利损失情况。
-    #     for due_timestamp in contract_kv:
-    #         contract = contract_kv[due_timestamp]
-    #         if contract["open_amount"] != contract["liquidate_amount"]:
-    #             return False, 0.0
-    #
-    #         contract_settle_pnl = contract["liquidate_quota"] + contract["open_quota"]
-    #         if settle_mode == SETTLE_MODE_BASIS:
-    #             # 除以open_price
-    #             contract_settle_pnl /= abs(contract["open_quota"] / contract["open_amount"] / unit_amount)
-    #             # 除以liquidate_price
-    #             contract_settle_pnl /= abs(contract["liquidate_quota"] / contract["liquidate_amount"] / unit_amount)
-    #         settle_pnl += contract_settle_pnl
-    #     return True, settle_pnl + total_fee
 
     def _cp_instance_and_gen_order(
             self,

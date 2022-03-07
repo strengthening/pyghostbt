@@ -99,54 +99,54 @@ class Backtest(Strategy):
         )
         return len(opened) > 0
 
-    def get_waiting(self, timestamp) -> (List[dict], str):
-        # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
-        query_sql = """
-        SELECT id FROM {trade_type}_instance_backtest WHERE symbol = ? AND exchange = ?
-         AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
-        """
-        insert_sql = """
-        INSERT INTO {trade_type}_instance_backtest (symbol, exchange, strategy, status,
-         wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?) 
-        """
-        params = (
-            self["symbol"], self["exchange"], self["strategy"],
-            INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
-        )
-
-        if self["trade_type"] == TRADE_TYPE_FUTURE:
-            query_sql = """
-            SELECT id FROM {trade_type}_instance_backtest WHERE symbol = ? AND exchange = ? AND contract_type = ?
-             AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
-            """
-            insert_sql = """
-            INSERT INTO {trade_type}_instance_backtest (symbol, exchange, contract_type, strategy, status,
-             wait_start_timestamp, backtest_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?) 
-            """
-            params = (
-                self["symbol"], self["exchange"], self["contract_type"],
-                self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
-            )
-
-        conn = Conn(self["db_name"])
-        # 线上环境中应该查找对应的instance记录来确定最新的 id
-        one = conn.query_one(
-            query_sql.format(trade_type=self["trade_type"]),
-            params
-        )
-        if one:
-            self.__setitem__("id", one["id"])
-
-        # 回测时生成对应的 id
-        if one is None:
-            last_insert_id = conn.insert(
-                insert_sql.format(trade_type=self["trade_type"]),
-                params,
-            )
-            self.__setitem__("id", last_insert_id)
-
-        return [], ""
+    # def get_waiting(self, timestamp) -> (List[dict], str):
+    #     # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
+    #     query_sql = """
+    #     SELECT id FROM {trade_type}_instance_backtest WHERE symbol = ? AND exchange = ?
+    #      AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
+    #     """
+    #     insert_sql = """
+    #     INSERT INTO {trade_type}_instance_backtest (symbol, exchange, strategy, status,
+    #      wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?)
+    #     """
+    #     params = (
+    #         self["symbol"], self["exchange"], self["strategy"],
+    #         INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
+    #     )
+    #
+    #     if self["trade_type"] == TRADE_TYPE_FUTURE:
+    #         query_sql = """
+    #         SELECT id FROM {trade_type}_instance_backtest WHERE symbol = ? AND exchange = ? AND contract_type = ?
+    #          AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
+    #         """
+    #         insert_sql = """
+    #         INSERT INTO {trade_type}_instance_backtest (symbol, exchange, contract_type, strategy, status,
+    #          wait_start_timestamp, backtest_id)
+    #          VALUES (?, ?, ?, ?, ?, ?, ?)
+    #         """
+    #         params = (
+    #             self["symbol"], self["exchange"], self["contract_type"],
+    #             self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
+    #         )
+    #
+    #     conn = Conn(self["db_name"])
+    #     # 线上环境中应该查找对应的instance记录来确定最新的 id
+    #     one = conn.query_one(
+    #         query_sql.format(trade_type=self["trade_type"]),
+    #         params
+    #     )
+    #     if one:
+    #         self.__setitem__("id", one["id"])
+    #
+    #     # 回测时生成对应的 id
+    #     if one is None:
+    #         last_insert_id = conn.insert(
+    #             insert_sql.format(trade_type=self["trade_type"]),
+    #             params,
+    #         )
+    #         self.__setitem__("id", last_insert_id)
+    #
+    #     return [], ""
 
     def __compare_candle_with_instance(self, candle: dict, instance: dict) -> dict:
         """

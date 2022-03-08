@@ -130,42 +130,31 @@ class Strategy(Runtime):
         return risk_level
 
     def _get_waiting_instance_id(self) -> int:
-        conn = Conn(self["db_name"])
         query_sql = """
-        SELECT id FROM {trade_type}_instance_{mode} WHERE {backtest_sql}symbol = ? AND exchange = ? AND strategy = ?
+        SELECT id FROM {trade_type}_instance_strategy WHERE symbol = ? AND exchange = ? AND strategy = ?
         AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
         """
         params = (
             self["symbol"], self["exchange"], self["strategy"],
             INSTANCE_STATUS_WAITING, 0,
         )
-        params_backtest = (
-            self.get("backtest_id"), self["symbol"], self["exchange"], self["strategy"],
-            INSTANCE_STATUS_WAITING, 0,
-        )
 
         if self["trade_type"] == TRADE_TYPE_FUTURE:
             query_sql = """
-            SELECT id FROM {trade_type}_instance_{mode} WHERE {backtest_sql}symbol = ? AND exchange = ? 
+            SELECT id FROM {trade_type}_instance_strategy WHERE symbol = ? AND exchange = ? 
             AND contract_type = ? AND strategy = ? AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
             """
             params = (
                 self["symbol"], self["exchange"], self["contract_type"],
                 self["strategy"], INSTANCE_STATUS_WAITING, 0,
             )
-            params_backtest = (
-                self.get("backtest_id"), self["symbol"], self["exchange"], self["contract_type"],
-                self["strategy"], INSTANCE_STATUS_WAITING, 0,
-            )
-        item = conn.query_one(
-            query_sql.format(
-                trade_type=self["trade_type"],
-                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
-                backtest_sql="backtest_id = ? AND " if self["mode"] == MODE_BACKTEST else "",
-            ),
-            params_backtest if self["mode"] == MODE_BACKTEST else params,
+
+        conn = Conn(self["db_name"])
+        one = conn.query_one(
+            query_sql.format(trade_type=self["trade_type"]),
+            params,
         )
-        return item["id"] if item else 0
+        return one["id"] if one else 0
 
     def _is_opened(self, wait_start_timestamp: int) -> bool:
         conn = Conn(self["db_name"])
@@ -197,81 +186,83 @@ class Strategy(Runtime):
 
     def get_waiting(self, timestamp) -> (List[dict], str):
         # 原则：数据库中instance表中永远有一条 状态为 waiting状态的订单
-        conn = Conn(self["db_name"])
-        query_sql = """
-        SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ?
-         AND status = ? AND wait_start_timestamp = ?
-        """
-        insert_sql = """
-        INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status, wait_start_timestamp)
-         VALUES (?, ?, ?, ?, ?) 
-        """
-        params = (
-            self["symbol"], self["exchange"], self["strategy"],
-            INSTANCE_STATUS_WAITING, 0
-        )
+        # conn = Conn(self["db_name"])
+        # query_sql = """
+        # SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND strategy = ?
+        #  AND status = ? AND wait_start_timestamp = ?
+        # """
+        # insert_sql = """
+        # INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status, wait_start_timestamp)
+        #  VALUES (?, ?, ?, ?, ?)
+        # """
+        # params = (
+        #     self["symbol"], self["exchange"], self["strategy"],
+        #     INSTANCE_STATUS_WAITING, 0
+        # )
+        #
+        # if self["trade_type"] == TRADE_TYPE_FUTURE and self["mode"] == MODE_BACKTEST:
+        #     query_sql = """
+        #     SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?
+        #      AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
+        #     """
+        #     insert_sql = """
+        #     INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, contract_type, strategy, status,
+        #      wait_start_timestamp, backtest_id)
+        #      VALUES (?, ?, ?, ?, ?, ?, ?)
+        #     """
+        #     params = (
+        #         self["symbol"], self["exchange"], self["contract_type"],
+        #         self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
+        #     )
+        # elif self["trade_type"] == TRADE_TYPE_FUTURE and self["mode"] in (MODE_OFFLINE, MODE_ONLINE, MODE_STRATEGY):
+        #     query_sql = """
+        #     SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?
+        #      AND strategy = ? AND status = ? AND wait_start_timestamp = ?
+        #     """
+        #     insert_sql = """
+        #     INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, contract_type, strategy, status,
+        #      wait_start_timestamp) VALUES (?, ?, ?, ?, ?, ?)
+        #     """
+        #     params = (
+        #         self["symbol"], self["exchange"], self["contract_type"],
+        #         self["strategy"], INSTANCE_STATUS_WAITING, 0,
+        #     )
+        # elif self["mode"] == MODE_BACKTEST:
+        #     query_sql = """
+        #     SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ?
+        #      AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
+        #     """
+        #     insert_sql = """
+        #     INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status,
+        #      wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?)
+        #     """
+        #     params = (
+        #         self["symbol"], self["exchange"], self["strategy"],
+        #         INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
+        #     )
+        #
+        # # 线上环境中应该查找对应的instance记录来确定最新的 id
+        # one = conn.query_one(
+        #     query_sql.format(
+        #         trade_type=self["trade_type"],
+        #         mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+        #     ),
+        #     params
+        # )
+        # if one:
+        #     self.__setitem__("id", one["id"])
+        # # 回测时生成对应的 id
+        # if self["mode"] == MODE_BACKTEST and one is None:
+        #     last_insert_id = conn.insert(
+        #         insert_sql.format(
+        #             trade_type=self["trade_type"],
+        #             mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
+        #         ),
+        #         params,
+        #     )
+        #     self.__setitem__("id", last_insert_id)
 
-        if self["trade_type"] == TRADE_TYPE_FUTURE and self["mode"] == MODE_BACKTEST:
-            query_sql = """
-            SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?
-             AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
-            """
-            insert_sql = """
-            INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, contract_type, strategy, status,
-             wait_start_timestamp, backtest_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?) 
-            """
-            params = (
-                self["symbol"], self["exchange"], self["contract_type"],
-                self["strategy"], INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
-            )
-        elif self["trade_type"] == TRADE_TYPE_FUTURE and self["mode"] in (MODE_OFFLINE, MODE_ONLINE, MODE_STRATEGY):
-            query_sql = """
-            SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ? AND contract_type = ?
-             AND strategy = ? AND status = ? AND wait_start_timestamp = ?
-            """
-            insert_sql = """
-            INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, contract_type, strategy, status,
-             wait_start_timestamp) VALUES (?, ?, ?, ?, ?, ?) 
-            """
-            params = (
-                self["symbol"], self["exchange"], self["contract_type"],
-                self["strategy"], INSTANCE_STATUS_WAITING, 0,
-            )
-        elif self["mode"] == MODE_BACKTEST:
-            query_sql = """
-            SELECT id FROM {trade_type}_instance_{mode} WHERE symbol = ? AND exchange = ?
-             AND strategy = ? AND status = ? AND wait_start_timestamp = ? AND backtest_id = ?
-            """
-            insert_sql = """
-            INSERT INTO {trade_type}_instance_{mode} (symbol, exchange, strategy, status,
-             wait_start_timestamp, backtest_id) VALUES (?, ?, ?, ?, ?, ?) 
-            """
-            params = (
-                self["symbol"], self["exchange"], self["strategy"],
-                INSTANCE_STATUS_WAITING, 0, self["backtest_id"],
-            )
-
-        # 线上环境中应该查找对应的instance记录来确定最新的 id
-        one = conn.query_one(
-            query_sql.format(
-                trade_type=self["trade_type"],
-                mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
-            ),
-            params
-        )
-        if one:
-            self.__setitem__("id", one["id"])
-        # 回测时生成对应的 id
-        if self["mode"] == MODE_BACKTEST and one is None:
-            last_insert_id = conn.insert(
-                insert_sql.format(
-                    trade_type=self["trade_type"],
-                    mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
-                ),
-                params,
-            )
-            self.__setitem__("id", last_insert_id)
+        self.__setitem__("id", self._get_waiting_instance_id())
         return [], ""
 
     def get_opening(self, timestamp: int) -> list:

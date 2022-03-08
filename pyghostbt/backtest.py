@@ -51,30 +51,50 @@ class Backtest(Strategy):
         return risk_level
 
     def _get_waiting_instance_id(self) -> int:
-        conn = Conn(self["db_name"])
         query_sql = """
-        SELECT id FROM {trade_type}_instance_backtest WHERE backtest_id = ? AND symbol = ? AND exchange = ? AND strategy = ?
-        AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
+        SELECT id FROM {trade_type}_instance_backtest WHERE backtest_id = ? AND symbol = ? AND exchange = ?
+        AND strategy = ? AND status = ? AND wait_start_timestamp = ? 
+        ORDER BY id DESC LIMIT 1
+        """
+        insert_sql = """
+        INSERT INTO {trade_type}_instance_backtest 
+        (backtest_id, symbol, exchange, strategy, status, wait_start_timestamp)
+        VALUES (?, ?, ?, ?, ?, ?) 
         """
         params = (
             self["backtest_id"], self["symbol"], self["exchange"], self["strategy"],
             INSTANCE_STATUS_WAITING, 0,
         )
+
         if self["trade_type"] == TRADE_TYPE_FUTURE:
             query_sql = """
             SELECT id FROM {trade_type}_instance_backtest WHERE backtest_id = ? AND symbol = ? AND exchange = ? 
-            AND contract_type = ? AND strategy = ? AND status = ? AND wait_start_timestamp = ? ORDER BY id DESC LIMIT 1
+            AND contract_type = ? AND strategy = ? AND status = ? AND wait_start_timestamp = ? 
+            ORDER BY id DESC LIMIT 1
+            """
+            insert_sql = """
+            INSERT INTO {trade_type}_instance_backtest (backtest_id, symbol, exchange, contract_type, strategy, status,
+             wait_start_timestamp)
+             VALUES (?, ?, ?, ?, ?, ?, ?) 
             """
             params = (
                 self["backtest_id"], self["symbol"], self["exchange"], self["contract_type"],
                 self["strategy"], INSTANCE_STATUS_WAITING, 0,
             )
 
-        item = conn.query_one(
+        conn = Conn(self["db_name"])
+        one = conn.query_one(
             query_sql.format(trade_type=self["trade_type"]),
             params,
         )
-        return item["id"] if item else 0
+        if one:
+            return one["id"]
+
+        insert_id = conn.insert(
+            insert_sql.format(trade_type=self["trade_type"]),
+            params,
+        )
+        return insert_id
 
     def _is_opened(self, wait_start_timestamp: int) -> bool:
         conn = Conn(self["db_name"])

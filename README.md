@@ -35,8 +35,8 @@ python3 -m unittest test/future/log.py
 
 ## Install
 
-- python3.7 setup.py sdist  
-- pip3.7 install dist/XXXX.tar.gz
+- python3 setup.py sdist  
+- pip3 install dist/XXXX.tar.gz
 
 ## License
 

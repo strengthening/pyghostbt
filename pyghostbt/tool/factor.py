@@ -76,6 +76,16 @@ class Factor(object):
         if metadata is not None:
             return metadata
 
+        if self._contract_type != CONTRACT_TYPE_NONE:
+            metadata = conn.query_one(
+                "SELECT * FROM factor_metadata"
+                " WHERE symbol = ? AND trade_type = ? AND contract_type = ?"
+                " AND `interval` = ? AND factor_name = ? ",
+                (self._symbol, self._trade_type, CONTRACT_TYPE_NONE, self._interval, fact_name),
+            )
+            if metadata is not None:
+                return metadata
+
         metadata = conn.query_one(
             "SELECT * FROM factor_metadata"
             " WHERE symbol = ? AND trade_type = ? AND contract_type = ?"

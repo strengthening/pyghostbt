@@ -101,12 +101,17 @@ class Factor(object):
         return self._value_by_id(meta["factor_id"], timestamp)
 
     def get_spot_value(self, factor_name: str, timestamp: int):
+        symbol = self._symbol
+        currencies = symbol.split("_")
+        if currencies[-1] in ("usdt", "usdc", "busd"):
+            symbol = currencies[0] + "_usd"
+
         conn = Conn(self._db_name)
         meta = conn.query_one(
             "SELECT * FROM factor_metadata"
             " WHERE symbol = ? AND trade_type = ? AND contract_type = ?"
             " AND `interval` = ? AND factor_name = ? ",
-            (self._symbol, TRADE_TYPE_SPOT, CONTRACT_TYPE_NONE, self._interval, factor_name),
+            (symbol, TRADE_TYPE_SPOT, CONTRACT_TYPE_NONE, self._interval, factor_name),
         )
         if meta is None:
             return None

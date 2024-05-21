@@ -1,4 +1,4 @@
-PyMySQL==0.8.0
+PyMySQL==1.1.1
 python-dotenv==0.10.1
 numpy==1.22.0
 TA-Lib==0.4.17

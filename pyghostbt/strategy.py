@@ -83,7 +83,7 @@ class Strategy(Runtime):
     def check_instance(instance):
         validate(instance=instance, schema=INSTANCE_VALIDATE)
 
-    # 获取instance 风险等级。
+    # 获取instance 风险等级。 timestamp要设置为interval的起始时间。
     def _get_risk_level(self, timestamp: int, instance_id: int) -> int:
         conn = Conn(self["db_name"])
         table_name = "{trade_type}_instance_{mode}".format(
@@ -91,7 +91,7 @@ class Strategy(Runtime):
             mode=MODE_BACKTEST if self["mode"] == MODE_BACKTEST else MODE_STRATEGY,
         )
 
-        m = moment.get(timestamp).to(self.get("timezone") or "Asia/Shanghai").floor("day")
+        # m = moment.get(timestamp).to(self.get("timezone") or "Asia/Shanghai").floor("day")
         query_sql = """
         SELECT id FROM {} WHERE symbol = ? AND exchange = ? AND strategy = ? 
         AND (status IN (?, ?, ?) OR ( status = ? AND liquidate_finish_timestamp > ? )) ORDER BY open_start_timestamp, id
@@ -99,7 +99,7 @@ class Strategy(Runtime):
         params = (
             self["symbol"], self["exchange"], self["strategy"],
             INSTANCE_STATUS_OPENING, INSTANCE_STATUS_LIQUIDATING, INSTANCE_STATUS_ERROR,
-            INSTANCE_STATUS_FINISHED, m.millisecond_timestamp,
+            INSTANCE_STATUS_FINISHED, timestamp,
         )
 
         if self["mode"] == MODE_BACKTEST:

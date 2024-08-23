@@ -123,11 +123,11 @@ class Strategy(Runtime):
             params,
         )
 
-        instance_ids = [i["id"] for i in instances]
-        risk_level = len(instance_ids)
-        if instance_id in instance_ids:
-            risk_level = instance_ids.index(instance_id)
-        return risk_level
+        # instance_ids = [i["id"] for i in instances]
+        # risk_level = len(instance_ids)
+        # if instance_id in instance_ids:
+        #     risk_level = instance_ids.index(instance_id)
+        return len(instances)
 
     def _get_waiting_instance_id(self) -> int:
         query_sql = """

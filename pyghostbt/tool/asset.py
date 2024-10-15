@@ -36,6 +36,7 @@ asset_input = {
                 EXCHANGE_BINANCE,
                 EXCHANGE_COINBASE,
                 EXCHANGE_BITSTAMP,
+                EXCHANGE_KRAKEN,
             ],
         },
         "contract_type": {
